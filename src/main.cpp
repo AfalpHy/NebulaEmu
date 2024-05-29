@@ -1,9 +1,10 @@
-#include "Emulator.h"
 #include <iostream>
 
-int main() {
-  NebulaEmu::Emulator emulator;
-  emulator.run();
+#include "Emulator.h"
 
-  return 0;
+int main(int argc, char **argv) {
+    NebulaEmu::Emulator emulator;
+    emulator.run(argv[1]);
+
+    return 0;
 }

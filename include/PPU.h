@@ -3,11 +3,9 @@
 namespace NebulaEmu {
 class PPU {
 public:
-  PPU() {}
-  ~PPU() {}
 
 private:
-  /* data */
+    /* data */
 };
 
-} // namespace NebulaEmu
+}  // namespace NebulaEmu

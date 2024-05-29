@@ -3,11 +3,9 @@
 namespace NebulaEmu {
 class CPU {
 public:
-  CPU() {}
-  ~CPU() {}
 
 private:
-  /* data */
+    /* data */
 };
 
-} // namespace NebulaEmu
+}  // namespace NebulaEmu

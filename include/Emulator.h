@@ -1,16 +1,16 @@
 #pragma once
 
 #include "CPU.h"
+#include "Cartridge.h"
 
 namespace NebulaEmu {
 class Emulator {
 public:
-  Emulator() {}
-
-  void run();
+    void run(std::string path);
 
 private:
-  CPU *_cpu = nullptr;
+    Cartridge _cartridge;
+    CPU _cpu;
 };
 
-} // namespace NebulaEmu
+}  // namespace NebulaEmu
