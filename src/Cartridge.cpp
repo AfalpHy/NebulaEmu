@@ -1,18 +1,16 @@
 #include "Cartridge.h"
 
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 
 using namespace std;
-using namespace filesystem;
 
 namespace NebulaEmu {
 
 void Cartridge::load(string path) {
     ifstream file(path, ios::binary);
     if (!file.is_open()) {
-        cerr << "Failed to open file " << endl;
+        cerr << "Failed to open file \"" << path << "\"" << endl;
         exit(1);
     }
 
