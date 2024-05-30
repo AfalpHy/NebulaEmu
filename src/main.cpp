@@ -17,15 +17,14 @@ PPU* ppu = nullptr;
 
 void init() {
     cartridge = new Cartridge();
-
     cpu = new CPU();
-    cpu->powerUp();
-
     ppu = new PPU();
 }
 
 void run(std::string path) {
     cartridge->load(path);
+    cpu->reset();
+
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window* window = SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);

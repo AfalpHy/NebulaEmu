@@ -3,15 +3,38 @@
 #include <cstdint>
 
 namespace NebulaEmu {
+
+enum InterruptType {
+    NMI_I,
+    IRQ_I,
+    BRK_I  // triggered by software
+};
+
 class CPU {
 public:
-    void powerUp();
+    void reset();
 
-    uint8_t read(uint16_t addr);
+    void step();
+
+private:
+    uint8_t readByte(uint16_t addr);
+
+    uint16_t readWord(uint16_t addr);
 
     void write(uint16_t addr, uint8_t data);
 
-private:
+    void pushStack(uint8_t data);
+
+    uint8_t popStack();
+
+    void setZN(uint8_t result);
+
+    void executeInterrupt(InterruptType type);
+
+    bool executeImpliedInstruct(uint8_t opcode);
+    bool executeBranchInstruct(uint8_t opcode);
+    bool executeCommonInstruct(uint8_t opcode);
+
     uint16_t _PC;
     uint8_t _SP;
     uint8_t _A;
@@ -32,6 +55,12 @@ private:
     } _P;
 
     uint8_t _RAM[0x800];
+
+    bool _NMI_pin;
+    bool _IRQ_pin;
+
+    uint64_t _cycles = 0;
+    uint64_t _skipCycles = 0;
 };
 
 }  // namespace NebulaEmu
