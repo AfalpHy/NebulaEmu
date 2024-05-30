@@ -1,24 +1,31 @@
 #pragma once
+
 #include <string>
 #include <vector>
 
+#include "Mapper.h"
+
 namespace NebulaEmu {
 
-typedef unsigned char Byte;
+enum NameTableMirroring { Horizontal, Vertical, SingleScreen, FourScreen };
+
+#define DeclareFriend(Mapper) friend class Mapper
 
 class Cartridge {
 public:
     void load(std::string path);
 
-    enum Mirroring { Horizontal, Vertical, SingleScreen, FourScreen };
+    Mapper* getMapper() { return _mapper; }
+
+    DeclareFriend(MapperNROM);
 
 private:
-    Mirroring _mirroring;
-    Byte* _battery_backed_RAM = nullptr;
-    // Byte* _trainer = nullptr;
-    Byte* _PRG_ROM;  // 16384 * x bytes
-    Byte* _CHR_ROM;  // 8192 * x bytes
-    unsigned _mapperNum;
+    NameTableMirroring _mirroring;
+    uint8_t* _battery_backed_RAM = nullptr;
+    // uint8_t* _trainer = nullptr;
+    std::vector<uint8_t> _PRG_ROM;  // 16384 * x bytes
+    std::vector<uint8_t> _CHR_ROM;  // 8192 * y bytes
+    Mapper* _mapper = nullptr;
 };
 
 }  // namespace NebulaEmu

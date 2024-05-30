@@ -1,12 +1,45 @@
+#include <SDL2/SDL.h>
 #include <getopt.h>
 
 #include <iostream>
 
-#include "Emulator.h"
+#include "CPU.h"
+#include "Cartridge.h"
+#include "PPU.h"
 
 using namespace std;
 
-int main(int argc, char **argv) {
+namespace NebulaEmu {
+
+Cartridge* cartridge = nullptr;
+CPU* cpu = nullptr;
+PPU* ppu = nullptr;
+
+void init() {
+    cartridge = new Cartridge();
+
+    cpu = new CPU();
+    cpu->powerUp();
+
+    ppu = new PPU();
+}
+
+void run(std::string path) {
+    cartridge->load(path);
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Window* window = SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_RenderClear(renderer);
+    SDL_RenderPresent(renderer);
+
+    SDL_Delay(3000);
+    SDL_DestroyRenderer(renderer);
+    SDL_Quit();
+}
+
+}  // namespace NebulaEmu
+
+int main(int argc, char** argv) {
     string path;
     const struct option table[] = {
         {"help", no_argument, NULL, 'h'},
@@ -37,8 +70,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    NebulaEmu::Emulator emulator;
-    emulator.run(path);
+    NebulaEmu::init();
+
+    NebulaEmu::run(path);
 
     return 0;
 }

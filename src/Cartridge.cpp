@@ -14,7 +14,7 @@ void Cartridge::load(string path) {
         exit(1);
     }
 
-    Byte header[16];
+    uint8_t header[16];
     file.read((char*)header, 16);
 
     if (!(header[0] == 'N' && header[1] == 'E' && header[2] == 'S' && header[3] == 0x1A)) {
@@ -28,14 +28,14 @@ void Cartridge::load(string path) {
         exit(1);
     }
 
-    _mirroring = (Mirroring)(header[6] & 0x01);
+    _mirroring = (NameTableMirroring)(header[6] & 0x01);
 
     if (header[6] & 0x02) {
-        _battery_backed_RAM = (Byte*)malloc(0X2000);
+        _battery_backed_RAM = (uint8_t*)malloc(0X2000);
     }
 
     if (header[6] & 0x04) {
-        // _trainer = (Byte*)malloc(512);
+        // _trainer = (uint8_t*)malloc(512);
         // file.read((char*)_trainer, 512);
         cerr << "Trainer unsupported" << endl;
         exit(1);
@@ -46,15 +46,15 @@ void Cartridge::load(string path) {
         _mirroring = FourScreen;
     }
 
-    _mapperNum = (header[7] & 0xF0) | ((header[6] & 0xF0) >> 4);
+    _mapper = Mapper::createMapper((header[7] & 0xF0) | ((header[6] & 0xF0) >> 4));
 
     unsigned _PRG_ROM_size = header[4] * 0x4000;
-    _PRG_ROM = (Byte*)malloc(_PRG_ROM_size);
-    file.read((char*)_PRG_ROM, _PRG_ROM_size);
+    _PRG_ROM.reserve(_PRG_ROM_size);
+    file.read((char*)&_PRG_ROM[0], _PRG_ROM_size);
 
     unsigned _CHR_ROM_size = header[5] * 0x2000;
-    _CHR_ROM = (Byte*)malloc(_CHR_ROM_size);
-    file.read((char*)_CHR_ROM, _CHR_ROM_size);
+    _CHR_ROM.reserve(_CHR_ROM_size);
+    file.read((char*)&_CHR_ROM[0], _CHR_ROM_size);
 }
 
 }  // namespace NebulaEmu
