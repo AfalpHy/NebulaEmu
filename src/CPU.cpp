@@ -137,8 +137,8 @@ void CPU::step() {
     uint8_t opcode = readByte(_PC++);
     int cycleLength = operationCycles[opcode];
 
-    if (cycleLength && (executeImpliedInstruct(opcode) || executeBranchInstruct(opcode)) ||
-        executeCommonInstruct(opcode)) {
+    if (cycleLength && (executeImplied(opcode) || executeBranch(opcode)) ||
+        executeCommon(opcode)) {
     } else {
         std::cerr << "unkown instruct" << std::endl;
         exit(1);
@@ -211,7 +211,7 @@ void CPU::executeInterrupt(InterruptType type) {
     }
 }
 
-bool CPU::executeImpliedInstruct(uint8_t opcode) {
+bool CPU::executeImplied(uint8_t opcode) {
     switch (opcode) {
         case BRK:
             executeInterrupt(BRK_I);
@@ -321,7 +321,7 @@ bool CPU::executeImpliedInstruct(uint8_t opcode) {
     return true;
 }
 
-bool CPU::executeBranchInstruct(uint8_t opcode) {
+bool CPU::executeBranch(uint8_t opcode) {
     bool br;
     switch (opcode) {
         case BPL:
@@ -365,7 +365,7 @@ bool CPU::executeBranchInstruct(uint8_t opcode) {
     return true;
 }
 
-bool CPU::executeCommonInstruct(uint8_t opcode) {
+bool CPU::executeCommon(uint8_t opcode) {
     uint8_t addressMode = opcode & 0x1f;
     opcode = opcode & 0x63;
     uint16_t location = 0;

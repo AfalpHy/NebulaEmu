@@ -31,9 +31,9 @@ private:
 
     void executeInterrupt(InterruptType type);
 
-    bool executeImpliedInstruct(uint8_t opcode);
-    bool executeBranchInstruct(uint8_t opcode);
-    bool executeCommonInstruct(uint8_t opcode);
+    bool executeImplied(uint8_t opcode);
+    bool executeBranch(uint8_t opcode);
+    bool executeCommon(uint8_t opcode);
 
     uint16_t _PC;
     uint8_t _SP;
