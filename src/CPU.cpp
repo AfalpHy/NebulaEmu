@@ -137,8 +137,7 @@ void CPU::step() {
     uint8_t opcode = readByte(_PC++);
     int cycleLength = operationCycles[opcode];
 
-    if (cycleLength && (executeImplied(opcode) || executeBranch(opcode)) ||
-        executeCommon(opcode)) {
+    if (cycleLength && (executeImplied(opcode) || executeBranch(opcode)) || executeCommon(opcode)) {
     } else {
         std::cerr << "unkown instruct" << std::endl;
         exit(1);
@@ -189,6 +188,12 @@ uint8_t CPU::popStack() { return _RAM[_SP++ | 0x100]; }
 void CPU::setZN(uint8_t result) {
     _P.bits.Z = !result;
     _P.bits.N = result >> 7;
+}
+
+void CPU::addSkipCyclesIfPageCrossed(uint16_t cur, uint16_t next) {
+    if ((cur & 0xFF00) != (next & 0xFF)) {
+        _skipCycles += 1;
+    }
 }
 
 void CPU::executeInterrupt(InterruptType type) {
@@ -354,9 +359,7 @@ bool CPU::executeBranch(uint8_t opcode) {
     if (br) {
         int8_t offset = readByte(_PC++);
         _skipCycles += 1;
-        if ((_PC & 0xFF00) != ((_PC + offset) & 0xFF)) {
-            _skipCycles += 1;
-        }
+        addSkipCyclesIfPageCrossed(_PC, _PC + offset);
         // uint16_t and int8_t will be promoted to int
         _PC = _PC + offset;
     } else {
@@ -370,23 +373,23 @@ bool CPU::executeCommon(uint8_t opcode) {
     opcode = opcode & 0x63;
     uint16_t location = 0;
     switch (addressMode) {
-        // indexedIndirectX
+        // indexedIndirect
         case 0 << 0 | 1: {
             uint8_t zeroAddr = readByte(_PC) + _X;
             location = readByte(zeroAddr) | readByte(zeroAddr + 1) << 8;
             break;
         }
-        // zero page
-        case 1 << 2 | 0:
-        case 1 << 2 | 1:
-        case 1 << 2 | 2:
-            location = readByte(_PC++);
-            break;
         // immediate
         case 0 << 2 | 0:
         case 2 << 2 | 1:
         case 0 << 2 | 2:
             location = _PC++;
+            break;
+        // zero page
+        case 1 << 2 | 0:
+        case 1 << 2 | 1:
+        case 1 << 2 | 2:
+            location = readByte(_PC++);
             break;
         // absolute
         case 3 << 2 | 0:
@@ -394,7 +397,18 @@ bool CPU::executeCommon(uint8_t opcode) {
         case 3 << 2 | 2:
             location = readWord(_PC);
             _PC += 2;
-        // indexed
+            break;
+        // indirect indexed
+        case 4 << 2 | 1: {
+            uint8_t zeroAddr = readByte(_PC);
+            location = readByte(zeroAddr) | readByte(zeroAddr + 1) << 8;
+            if (opcode != STA) {
+                addSkipCyclesIfPageCrossed(location, location + _Y);
+            }
+            location += _Y;
+            break;
+        }
+        // indexed zero page
         case 5 << 2 | 0:
         case 5 << 2 | 1:
         case 5 << 2 | 2:
@@ -404,9 +418,175 @@ bool CPU::executeCommon(uint8_t opcode) {
                 location = (readByte(_PC++) + _X) & 0xff;
             }
             break;
+        // absolute Y
+        case 6 << 2 | 1:
+            location = readWord(_PC);
+            _PC += 2;
+            if (opcode != STA) {
+                addSkipCyclesIfPageCrossed(location, location + _Y);
+            }
+            location += _Y;
+            break;
+        // absolute X
+        case 7 << 2 | 0:
+        case 7 << 2 | 1:
+            location = readWord(_PC);
+            _PC += 2;
+            if (opcode != STA) {
+                addSkipCyclesIfPageCrossed(location, location + _X);
+            }
+            location += _X;
+            break;
+        // absolute X/Y
+        case 7 << 2 | 2: {
+            location = readWord(_PC);
+            _PC += 2;
+            uint8_t index;
+            if (opcode == LDX) {
+                index = _Y;
+            } else {
+                index = _X;
+            }
+            addSkipCyclesIfPageCrossed(location, location + index);
+            location += index;
+            break;
+        }
         default:
             break;
     }
-    return false;
+    uint16_t operand = 0;
+    switch (opcode) {
+        case BIT:
+            operand = readByte(location);
+            _P.bits.Z = !(_A & operand);
+            _P.bits.V = operand & 0x40;
+            _P.bits.N = operand & 0x80;
+            break;
+        case STY:
+            write(location, _Y);
+            break;
+        case LDY:
+            _Y = readByte(location);
+            setZN(_Y);
+            break;
+        case CPY:
+            operand = _Y - readByte(location);
+            _P.bits.C = !(operand & 0x100);
+            setZN(operand);
+            break;
+        case CPX:
+            operand = _X - readByte(location);
+            _P.bits.C = !(operand & 0x100);
+            setZN(operand);
+            break;
+        case ORA:
+            _A |= readByte(location);
+            setZN(_A);
+            break;
+        case AND:
+            _A &= readByte(location);
+            setZN(_A);
+            break;
+        case EOR:
+            _A ^= readByte(location);
+            setZN(_A);
+            break;
+        case ADC: {
+            operand = readByte(location);
+            uint16_t sum = _A + operand + _P.bits.C;
+            _P.bits.C = sum & 0x100;
+            _P.bits.V = (_A ^ sum) & (operand ^ sum) & 0x80;
+            setZN(_A);
+        } break;
+        case STA:
+            write(location, _A);
+            break;
+        case LDA:
+            _A = readByte(location);
+            setZN(_A);
+            break;
+        case CMP:
+            operand = _A - readByte(location);
+            _P.bits.C = !(operand & 0x100);
+            setZN(operand);
+            break;
+        case SBC: {
+            operand = readByte(location);
+            uint16_t sum = _A - operand - !_P.bits.C;
+            _P.bits.C = sum & 0x100;
+            _P.bits.V = (_A ^ sum) & (operand ^ sum) & 0x80;
+            setZN(_A);
+        } break;
+        case ASL:
+            if (addressMode == (2 << 2 | 2)) {
+                _P.bits.C = _A & 0x80;
+                _A = _A << 1;
+                setZN(_A);
+            } else {
+                operand = readByte(location);
+                _P.bits.C = operand & 0x80;
+                write(location, operand << 1);
+                setZN(operand);
+            }
+            break;
+        case ROL: {
+            auto tmp = _P.bits.C;
+            if (addressMode == (2 << 2 | 2)) {
+                _P.bits.C = _A & 0x80;
+                _A = (_A << 1) | tmp;
+                setZN(_A);
+            } else {
+                operand = readByte(location);
+                _P.bits.C = operand & 0x80;
+                write(location, (operand << 1) | tmp);
+                setZN(operand);
+            }
+        } break;
+        case LSR:
+            if (addressMode == (2 << 2 | 2)) {
+                _P.bits.C = _A & 1;
+                _A = _A >> 1;
+                setZN(_A);
+            } else {
+                operand = readByte(location);
+                _P.bits.C = operand & 1;
+                write(location, operand >> 1);
+                setZN(operand);
+            }
+            break;
+        case ROR: {
+            auto tmp = _P.bits.C;
+            if (addressMode == (2 << 2 | 2)) {
+                _P.bits.C = _A & 1;
+                _A = (_A >> 1) | (tmp << 7);
+                setZN(_A);
+            } else {
+                operand = readByte(location);
+                _P.bits.C = operand & 1;
+                write(location, (operand >> 1) | (tmp << 7));
+                setZN(operand);
+            }
+        } break;
+        case STX:
+            write(location, _X);
+            break;
+        case LDX:
+            _X = readByte(location);
+            setZN(_X);
+            break;
+        case DEC:
+            operand = readByte(location) - 1;
+            write(location, operand);
+            setZN(operand);
+            break;
+        case INC:
+            operand = readByte(location) + 1;
+            write(location, operand);
+            setZN(operand);
+            break;
+        default:
+            return false;
+    }
+    return true;
 }
 }  // namespace NebulaEmu

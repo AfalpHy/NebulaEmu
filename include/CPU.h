@@ -29,6 +29,8 @@ private:
 
     void setZN(uint8_t result);
 
+    void addSkipCyclesIfPageCrossed(uint16_t cur, uint16_t next);
+
     void executeInterrupt(InterruptType type);
 
     bool executeImplied(uint8_t opcode);
