@@ -4,10 +4,12 @@
 
 #include "Cartridge.h"
 #include "Mapper.h"
+#include "PPU.h"
 
 namespace NebulaEmu {
 
 extern Cartridge* cartridge;
+extern PPU* ppu;
 
 // clang-format off
 static const int operationCycles[0x100] = {
@@ -150,13 +152,35 @@ uint8_t CPU::readByte(uint16_t addr) {
     if (addr < 0x2000) {
         return _RAM[addr & 0x7ff];
     } else if (addr < 0x4000) {
-        /// TODO:
+        addr = (addr - 0x2000) & 0x0007;
+        switch (addr) {
+            case 2:
+                return ppu->readPPUSTATUS();
+            case 4:
+                return ppu->readOAMDATA();
+            case 7:
+                return ppu->readPPUDATA();
+            default:
+                std::cerr << "read wrong addr" << std::endl;
+                exit(1);
+        }
     } else if (addr < 0x4020) {
-        /// TODO:
+        if (addr == 0x4016) {
+            /// TODO: joypad1
+        } else if (addr == 0x4017) {
+            /// TODO: joypad2
+        } else if (addr == 0x4015) {
+            std::cerr << "read unsupported addr" << std::endl;
+            exit(1);
+        } else {
+            std::cerr << "read wrong addr" << std::endl;
+            exit(1);
+        }
     } else if (addr < 0x6000) {
-        /// TODO:
+        std::cerr << "read unsupported addr" << std::endl;
+        exit(1);
     } else if (addr < 0x8000) {
-        /// TODO:
+        return cartridge->getMapper()->readSRAM(addr);
     } else {
         return cartridge->getMapper()->readPRGROM(addr);
     }
@@ -169,15 +193,55 @@ void CPU::write(uint16_t addr, uint8_t data) {
     if (addr < 0x2000) {
         _RAM[addr & 0x7ff] = data;
     } else if (addr < 0x4000) {
-        /// TODO:
+        addr = (addr - 0x2000) & 0x0007;
+        switch (addr) {
+            case 0:
+                ppu->writePPUCTRL(data);
+                break;
+            case 1:
+                ppu->writePPUCMASK(data);
+                break;
+            case 3:
+                ppu->writeOAMADDR(data);
+                break;
+            case 4:
+                ppu->writeOAMDATA(data);
+                break;
+            case 5:
+                ppu->writePPUSCROLL(data);
+                break;
+            case 6:
+                ppu->writePPUADDR(data);
+                break;
+            case 7:
+                ppu->writePPUDATA(data);
+                break;
+            default:
+                std::cerr << "write wrong addr" << std::endl;
+                exit(1);
+        }
     } else if (addr < 0x4020) {
-        /// TODO:
+        if (addr == 0x4014) {
+            /// TODO:
+            ppu->DMA(0);
+        } else if (addr == 0x4016) {
+            /// TODO: joypad1
+        } else if (addr == 0x4017) {
+            /// TODO: joypad2
+        } else if (addr > 0x4017) {
+            std::cerr << "write wrong addr" << std::endl;
+            exit(1);
+        } else {
+            std::cerr << "write unsupported addr" << std::endl;
+            exit(1);
+        }
     } else if (addr < 0x6000) {
-        /// TODO:
+        std::cerr << "write unsupported addr" << std::endl;
+        exit(1);
     } else if (addr < 0x8000) {
-        /// TODO:
+        cartridge->getMapper()->writeSRAM(addr, data);
     } else {
-        /// TODO:
+        cartridge->getMapper()->wirtePRGROM(addr, data);
     }
 }
 

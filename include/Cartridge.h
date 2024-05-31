@@ -17,6 +17,7 @@ public:
 
     Mapper* getMapper() { return _mapper; }
 
+    DeclareFriend(Mapper);
     DeclareFriend(MapperNROM);
 
 private:
