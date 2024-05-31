@@ -182,7 +182,7 @@ uint8_t CPU::readByte(uint16_t addr) {
     } else if (addr < 0x8000) {
         return cartridge->getMapper()->readSRAM(addr);
     } else {
-        return cartridge->getMapper()->readPRGROM(addr);
+        return cartridge->getMapper()->readPRG(addr);
     }
     return 0;
 }
@@ -222,7 +222,9 @@ void CPU::write(uint16_t addr, uint8_t data) {
         }
     } else if (addr < 0x4020) {
         if (addr == 0x4014) {
-            /// TODO:
+            _skipCycles += 513;
+            _skipCycles += _cycles & 1;
+
             ppu->DMA(0);
         } else if (addr == 0x4016) {
             /// TODO: joypad1
@@ -241,7 +243,7 @@ void CPU::write(uint16_t addr, uint8_t data) {
     } else if (addr < 0x8000) {
         cartridge->getMapper()->writeSRAM(addr, data);
     } else {
-        cartridge->getMapper()->wirtePRGROM(addr, data);
+        cartridge->getMapper()->wirtePRG(addr, data);
     }
 }
 

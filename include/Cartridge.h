@@ -7,8 +7,6 @@
 
 namespace NebulaEmu {
 
-enum NameTableMirroring { Horizontal, Vertical, SingleScreen, FourScreen };
-
 #define DeclareFriend(Mapper) friend class Mapper
 
 class Cartridge {

@@ -1,5 +1,6 @@
 #include "Cartridge.h"
 
+#include <cstring>
 #include <fstream>
 #include <iostream>
 
@@ -32,6 +33,7 @@ void Cartridge::load(string path) {
 
     if (header[6] & 0x02) {
         _battery_backed_RAM = (uint8_t*)malloc(0X2000);
+        memset(_battery_backed_RAM, 0, 0x2000);
     }
 
     if (header[6] & 0x04) {
