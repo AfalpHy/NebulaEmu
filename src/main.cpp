@@ -21,18 +21,78 @@ void init() {
     ppu = new PPU();
 }
 
-void run(std::string path) {
+const int SCREEN_WIDTH = 256 * 3;
+const int SCREEN_HEIGHT = 240 * 3;
+
+uint32_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
+
+void run(string path) {
     cartridge->load(path);
     cpu->reset();
 
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, 0);
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    SDL_RenderClear(renderer);
-    SDL_RenderPresent(renderer);
 
-    SDL_Delay(3000);
+    SDL_Window* window =
+        SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+    SDL_Texture* texture =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    bool quit = false;
+    SDL_Event e;
+    while (!quit) {
+        while (SDL_PollEvent(&e) != 0) {
+            if (e.type == SDL_QUIT) {
+                quit = true;
+                break;
+            } else if (e.type == SDL_KEYDOWN) {
+                switch (e.key.keysym.sym) {
+                    case SDLK_UP:
+                        cout << "Up arrow key pressed." << endl;
+                        break;
+                    case SDLK_DOWN:
+                        cout << "Down arrow key pressed." << endl;
+                        break;
+                    case SDLK_LEFT:
+                        cout << "Left arrow key pressed." << endl;
+                        break;
+                    case SDLK_RIGHT:
+                        cout << "Right arrow key pressed." << endl;
+                        break;
+                    default:
+                        cout << "Some other key pressed." << endl;
+                        break;
+                }
+            } else if (e.type == SDL_KEYUP) {
+                switch (e.key.keysym.sym) {
+                    case SDLK_UP:
+                        cout << "Up arrow key released." << endl;
+                        break;
+                    case SDLK_DOWN:
+                        cout << "Down arrow key released." << endl;
+                        break;
+                    case SDLK_LEFT:
+                        cout << "Left arrow key released." << endl;
+                        break;
+                    case SDLK_RIGHT:
+                        cout << "Right arrow key released." << endl;
+                        break;
+                    default:
+                        cout << "Some other key released." << endl;
+                        break;
+                }
+            }
+            SDL_UpdateTexture(texture, nullptr, pixels, SCREEN_WIDTH * sizeof(uint32_t));
+            SDL_RenderClear(renderer);
+            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+            SDL_RenderPresent(renderer);
+        }
+    }
+    SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
+
     SDL_Quit();
 }
 
