@@ -141,7 +141,7 @@ void CPU::step() {
 
     if (cycleLength && (executeImplied(opcode) || executeBranch(opcode)) || executeCommon(opcode)) {
     } else {
-        std::cerr << "unkown instruct" << std::endl;
+        std::cerr << "unkown instruction" << std::endl;
         exit(1);
     }
 
@@ -307,7 +307,9 @@ bool CPU::executeImplied(uint8_t opcode) {
             break;
         case JMPI: {
             uint16_t location = readWord(_PC);
-            // bug in 6502, it's strange
+            // An original 6502 has does not correctly fetch the target address if the indirect vector falls on a page
+            // boundary (e.g. $xxFF where xx is any value from $00 to $FF). In this case fetches the LSB from $xxFF as
+            // expected but takes the MSB from $xx00.
             _PC = readByte(location) | readByte((location & 0xff00) | (location + 1) & 0xff) << 8;
             break;
         }
