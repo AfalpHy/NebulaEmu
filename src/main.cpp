@@ -11,6 +11,11 @@ using namespace std;
 
 namespace NebulaEmu {
 
+const int SCREEN_WIDTH = 256 * 3;
+const int SCREEN_HEIGHT = 240 * 3;
+
+uint32_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
+
 Cartridge* cartridge = nullptr;
 CPU* cpu = nullptr;
 PPU* ppu = nullptr;
@@ -20,11 +25,6 @@ void init() {
     cpu = new CPU();
     ppu = new PPU();
 }
-
-const int SCREEN_WIDTH = 256 * 3;
-const int SCREEN_HEIGHT = 240 * 3;
-
-uint32_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 void run(string path) {
     cartridge->load(path);

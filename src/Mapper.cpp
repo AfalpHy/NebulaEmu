@@ -30,6 +30,11 @@ void MapperNROM::wirteCHR(uint16_t addr, uint8_t data) {
     exit(1);
 }
 
+uint8_t* Mapper::getSRAMPtr(uint16_t addr) {
+    assert(cartridge->_battery_backed_RAM && "access not exist memory");
+    return &cartridge->_battery_backed_RAM[addr - 0x6000];
+}
+
 uint8_t Mapper::readSRAM(uint16_t addr) {
     assert(cartridge->_battery_backed_RAM && "access not exist memory");
     return cartridge->_battery_backed_RAM[addr - 0x6000];

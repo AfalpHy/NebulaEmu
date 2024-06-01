@@ -148,20 +148,37 @@ void CPU::step() {
     _skipCycles += cycleLength - 1;
 }
 
+uint8_t* CPU::getPagePtr(uint16_t addr) {
+    if (addr < 0x2000) {
+        return &_RAM[addr & 0x7ff];
+    } else if (addr < 0x4020) {
+        std::cerr << "DMA request should not reach here" << std::endl;
+        exit(1);
+    } else if (addr < 0x6000) {
+        std::cerr << "unsupported addr" << std::endl;
+        exit(2);
+    } else if (addr < 0x8000) {
+        return cartridge->getMapper()->getSRAMPtr(addr);
+    } else {
+        std::cerr << "DMA request should not reach here" << std::endl;
+        exit(1);
+    }
+}
+
 uint8_t CPU::readByte(uint16_t addr) {
     if (addr < 0x2000) {
         return _RAM[addr & 0x7ff];
     } else if (addr < 0x4000) {
-        addr = (addr - 0x2000) & 0x0007;
+        addr &= 0x2007;
         switch (addr) {
-            case 2:
+            case 0x2002:
                 return ppu->readPPUSTATUS();
-            case 4:
+            case 0x2004:
                 return ppu->readOAMDATA();
-            case 7:
+            case 0x2007:
                 return ppu->readPPUDATA();
             default:
-                std::cerr << "read wrong addr" << std::endl;
+                std::cerr << "read from unmapped addr" << std::endl;
                 exit(1);
         }
     } else if (addr < 0x4020) {
@@ -170,15 +187,15 @@ uint8_t CPU::readByte(uint16_t addr) {
         } else if (addr == 0x4017) {
             /// TODO: joypad2
         } else if (addr == 0x4015) {
-            std::cerr << "read unsupported addr" << std::endl;
-            exit(1);
+            // APU(ignored), just return 0
+            return 0;
         } else {
-            std::cerr << "read wrong addr" << std::endl;
+            std::cerr << "read from unmapped addr" << std::endl;
             exit(1);
         }
     } else if (addr < 0x6000) {
         std::cerr << "read unsupported addr" << std::endl;
-        exit(1);
+        exit(2);
     } else if (addr < 0x8000) {
         return cartridge->getMapper()->readSRAM(addr);
     } else {
@@ -193,53 +210,51 @@ void CPU::write(uint16_t addr, uint8_t data) {
     if (addr < 0x2000) {
         _RAM[addr & 0x7ff] = data;
     } else if (addr < 0x4000) {
-        addr = (addr - 0x2000) & 0x0007;
+        addr &= 0x2007;
         switch (addr) {
-            case 0:
+            case 0x2000:
                 ppu->writePPUCTRL(data);
                 break;
-            case 1:
+            case 0x2001:
                 ppu->writePPUCMASK(data);
                 break;
-            case 3:
+            case 0x2003:
                 ppu->writeOAMADDR(data);
                 break;
-            case 4:
+            case 0x2004:
                 ppu->writeOAMDATA(data);
                 break;
-            case 5:
+            case 0x2005:
                 ppu->writePPUSCROLL(data);
                 break;
-            case 6:
+            case 0x2006:
                 ppu->writePPUADDR(data);
                 break;
-            case 7:
+            case 0x2007:
                 ppu->writePPUDATA(data);
                 break;
             default:
-                std::cerr << "write wrong addr" << std::endl;
+                std::cerr << "write to ummapped addr" << std::endl;
                 exit(1);
         }
     } else if (addr < 0x4020) {
         if (addr == 0x4014) {
             _skipCycles += 513;
             _skipCycles += _cycles & 1;
-
-            ppu->DMA(0);
+            ppu->OAMDMA(getPagePtr(data));
         } else if (addr == 0x4016) {
             /// TODO: joypad1
         } else if (addr == 0x4017) {
             /// TODO: joypad2
         } else if (addr > 0x4017) {
-            std::cerr << "write wrong addr" << std::endl;
+            std::cerr << "write to ummapped addr" << std::endl;
             exit(1);
         } else {
-            std::cerr << "write unsupported addr" << std::endl;
-            exit(1);
+            // APU(ignored)
         }
     } else if (addr < 0x6000) {
-        std::cerr << "write unsupported addr" << std::endl;
-        exit(1);
+        std::cerr << "write to unsupported addr" << std::endl;
+        exit(2);
     } else if (addr < 0x8000) {
         cartridge->getMapper()->writeSRAM(addr, data);
     } else {

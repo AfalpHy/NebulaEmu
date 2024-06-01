@@ -32,7 +32,7 @@ void PPU::reset() {
     _x = 0;
     _w = 0;
 
-    _OAMAddr = 0;
+    _OAMADDR = 0;
 
     _scanline = 0;
     _cycles = 0;
@@ -42,17 +42,24 @@ void PPU::step() {}
 
 uint8_t PPU::readPPUSTATUS() {
     uint8_t tmp = _PPUSTATUS.value;
+    // Reading the status register will clear bit 7 mentioned above and also the address latch used by PPUSCROLL and
+    // PPUADDR. It does not clear the sprite 0 hit or overflow bit.
     _PPUSTATUS.bits.V = 0;
     _w = 0;
     return tmp;
 }
 
-uint8_t PPU::readOAMDATA() { return _OAM[_OAMAddr]; }
+uint8_t PPU::readOAMDATA() { return _OAM[_OAMADDR]; }
 
 uint8_t PPU::readPPUDATA() {
     uint8_t data = read(_v);
+    // Outside of rendering, reads from or writes to $2007 will add either 1 or 32 to v depending on the VRAM increment
+    // bit set via $2000.
     _v += addrInc();
+    /// TODO: During  rendering it will update the _v in an odd way
 
+    // When reading PPUDATA while the VRAM address is in the range 0–$3EFF (i.e., before the palettes), the read will
+    // return the contents of an internal read buffer.
     if (_v < 0x3f00) {
         static uint8_t dataBuffer = 0;
         std::swap(data, dataBuffer);
@@ -69,9 +76,19 @@ void PPU::writePPUCTRL(uint8_t data) {
 
 void PPU::writePPUCMASK(uint8_t data) { _PPUMASK.value = data; }
 
-void PPU::writeOAMADDR(uint8_t addr) { _OAMAddr = addr; }
+void PPU::writeOAMADDR(uint8_t addr) { _OAMADDR = addr; }
 
-void PPU::writeOAMDATA(uint8_t data) { _OAM[_OAMAddr++] = data; }
+void PPU::writeOAMDATA(uint8_t data) {
+    // Writes will increment OAMADDR after the write; reads do not
+    _OAM[_OAMADDR++] = data;
+    /// TODO:
+    // Writes to OAMDATA during rendering (on the pre-render line and the visible lines 0–239, provided either sprite or
+    // background rendering is enabled) do not modify values in OAM, but do perform a glitchy increment of OAMADDR,
+    // bumping only the high 6 bits (i.e., it bumps the [n] value in PPU sprite evaluation – it's plausible that it
+    // could bump the low bits instead depending on the current status of sprite evaluation).This extends to DMA
+    // transfers via OAMDMA, since that uses writes to $2004. For emulation purposes, it is probably best to completely
+    // ignore writes during rendering.
+}
 
 void PPU::writePPUSCROLL(uint8_t data) {
     if (!_w) {
@@ -101,11 +118,16 @@ void PPU::writePPUADDR(uint8_t addr) {
 
 void PPU::writePPUDATA(uint8_t data) {
     _VRAM[_v] = data;
+    // Outside of rendering, reads from or writes to $2007 will add either 1 or 32 to v depending on the VRAM increment
+    // bit set via $2000.
     _v += addrInc();
+    /// TODO: During  rendering it will update the _v in an odd way
 }
 
-void PPU::DMA(uint8_t addr) {
-    /// TODO:
+void PPU::OAMDMA(uint8_t* addr) {
+    for (int i = 0; i < 0x100; i++) {
+        _OAM[(_OAMADDR + i) % 0x100] = addr[i];
+    }
 }
 
 uint8_t PPU::read(uint16_t addr) {
@@ -117,10 +139,10 @@ uint8_t PPU::read(uint16_t addr) {
         if (addr >= 0x3000) {
             addr -= 0X1000;
         }
-        if (addr < 0x2400) { //L1
+        if (addr < 0x2400) {  // L1
             // NameTable0
             return _VRAM[addr - 0x2000];
-        } else if (addr < 0x2800) { //L2
+        } else if (addr < 0x2800) {  // L2
             switch (cartridge->getMapper()->getNameTableMirroing()) {
                 case Horizontal:
                     // NameTable0
@@ -130,9 +152,9 @@ uint8_t PPU::read(uint16_t addr) {
                     return _VRAM[addr - 0x2000];
                 default:
                     std::cerr << "unsupported mirroing" << std::endl;
-                    exit(1);
+                    exit(2);
             }
-        } else if (addr < 0x2C00) { //L3
+        } else if (addr < 0x2C00) {  // L3
             switch (cartridge->getMapper()->getNameTableMirroing()) {
                 case Horizontal:
                     // NameTable1
@@ -142,9 +164,9 @@ uint8_t PPU::read(uint16_t addr) {
                     return _VRAM[addr - 0x2800];
                 default:
                     std::cerr << "unsupported mirroing" << std::endl;
-                    exit(1);
+                    exit(2);
             }
-        } else { //L4
+        } else {  // L4
             // NameTable1
             return _VRAM[addr - 0x2800];
         }
@@ -168,10 +190,10 @@ void PPU::write(uint16_t addr, uint8_t data) {
         if (addr >= 0x3000) {
             addr -= 0X1000;
         }
-        if (addr < 0x2400) { //L1
+        if (addr < 0x2400) {  // L1
             // NameTable0
             _VRAM[addr - 0x2000] = data;
-        } else if (addr < 0x2800) { //L2
+        } else if (addr < 0x2800) {  // L2
             switch (cartridge->getMapper()->getNameTableMirroing()) {
                 case Horizontal:
                     // NameTable0
@@ -183,9 +205,9 @@ void PPU::write(uint16_t addr, uint8_t data) {
                     break;
                 default:
                     std::cerr << "unsupported mirroing" << std::endl;
-                    exit(1);
+                    exit(2);
             }
-        } else if (addr < 0x2C00) { //L3
+        } else if (addr < 0x2C00) {  // L3
             switch (cartridge->getMapper()->getNameTableMirroing()) {
                 case Horizontal:
                     // NameTable1
@@ -197,9 +219,9 @@ void PPU::write(uint16_t addr, uint8_t data) {
                     break;
                 default:
                     std::cerr << "unsupported mirroing" << std::endl;
-                    exit(1);
+                    exit(2);
             }
-        } else { //L4
+        } else {  // L4
             // NameTable1
             _VRAM[addr - 0x2800] = data;
         }

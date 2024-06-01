@@ -17,6 +17,8 @@ public:
     void step();
 
 private:
+    uint8_t* getPagePtr(uint16_t addr);
+
     uint8_t readByte(uint16_t addr);
 
     uint16_t readWord(uint16_t addr);

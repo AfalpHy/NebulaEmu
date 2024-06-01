@@ -26,7 +26,7 @@ void Cartridge::load(string path) {
     if ((header[7] & 0x0C) == 0x08) {
         // NES 2.0
         cerr << "NES 2.0 format unsupported" << endl;
-        exit(1);
+        exit(2);
     }
 
     _mirroring = (NameTableMirroring)(header[6] & 0x01);

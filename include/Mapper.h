@@ -16,6 +16,7 @@ public:
     virtual void wirtePRG(uint16_t addr, uint8_t data) = 0;
     virtual void wirteCHR(uint16_t addr, uint8_t data) = 0;
 
+    uint8_t* getSRAMPtr(uint16_t addr);
     uint8_t readSRAM(uint16_t addr);
     void writeSRAM(uint16_t addr, uint8_t data);
 
