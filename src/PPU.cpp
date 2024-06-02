@@ -146,8 +146,8 @@ void PPU::step() {
                             patternTableAddr += 0x1000;
                         }
                     } else {  // 8x16 sprites
-                        // tow tile: top tile and bottom tile
-                        // memory map: top tile(byte 0, byte 1) bottom tile(byte 2, byte 3)
+                        // top tile and bottom tile
+                        // memory map: top tile(byte 0-7, byte 8-15) bottom tile(byte 16-23, byte 24-31)
                         // bit-3 is one if it is the bottom tile of the sprite, multiply by two to get the next pattern
                         offsetY = (offsetY & 7) | ((offsetY & 8) << 1);
                         patternTableAddr = (tileIndex >> 1) * 32 + offsetY;
