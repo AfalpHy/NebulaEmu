@@ -6,6 +6,7 @@
 
 #include "CPU.h"
 #include "Cartridge.h"
+#include "Controller.h"
 #include "PPU.h"
 
 using namespace std;
@@ -20,11 +21,13 @@ uint32_t* pixels = nullptr;
 Cartridge* cartridge = nullptr;
 CPU* cpu = nullptr;
 PPU* ppu = nullptr;
+Controller* controller = nullptr;
 
 void init() {
     cartridge = new Cartridge();
     cpu = new CPU();
     ppu = new PPU();
+    controller = new Controller();
     pixels = (uint32_t*)malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(uint32_t));
 }
 
@@ -72,17 +75,29 @@ void run(string path) {
                 break;
             } else if (e.type == SDL_KEYDOWN) {
                 switch (e.key.keysym.sym) {
-                    case SDLK_UP:
-                        cout << "Up arrow key pressed." << endl;
+                    case SDLK_j:
+                        controller->set(A);
                         break;
-                    case SDLK_DOWN:
-                        cout << "Down arrow key pressed." << endl;
+                    case SDLK_k:
+                        controller->set(B);
                         break;
-                    case SDLK_LEFT:
-                        cout << "Left arrow key pressed." << endl;
+                    case SDLK_SPACE:
+                        controller->set(Select);
                         break;
-                    case SDLK_RIGHT:
-                        cout << "Right arrow key pressed." << endl;
+                    case SDLK_RETURN:
+                        controller->set(Start);
+                        break;
+                    case SDLK_w:
+                        controller->set(Up);
+                        break;
+                    case SDLK_s:
+                        controller->set(Down);
+                        break;
+                    case SDLK_a:
+                        controller->set(Left);
+                        break;
+                    case SDLK_d:
+                        controller->set(Right);
                         break;
                     default:
                         cout << "Some other key pressed." << endl;
@@ -90,17 +105,29 @@ void run(string path) {
                 }
             } else if (e.type == SDL_KEYUP) {
                 switch (e.key.keysym.sym) {
-                    case SDLK_UP:
-                        cout << "Up arrow key released." << endl;
+                    case SDLK_j:
+                        controller->clear(A);
                         break;
-                    case SDLK_DOWN:
-                        cout << "Down arrow key released." << endl;
+                    case SDLK_k:
+                        controller->clear(B);
                         break;
-                    case SDLK_LEFT:
-                        cout << "Left arrow key released." << endl;
+                    case SDLK_SPACE:
+                        controller->clear(Select);
                         break;
-                    case SDLK_RIGHT:
-                        cout << "Right arrow key released." << endl;
+                    case SDLK_RETURN:
+                        controller->clear(Start);
+                        break;
+                    case SDLK_w:
+                        controller->clear(Up);
+                        break;
+                    case SDLK_s:
+                        controller->clear(Down);
+                        break;
+                    case SDLK_a:
+                        controller->clear(Left);
+                        break;
+                    case SDLK_d:
+                        controller->clear(Right);
                         break;
                     default:
                         cout << "Some other key released." << endl;

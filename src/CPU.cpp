@@ -3,13 +3,14 @@
 #include <iostream>
 
 #include "Cartridge.h"
+#include "Controller.h"
 #include "Mapper.h"
 #include "PPU.h"
-
 namespace NebulaEmu {
 
 extern Cartridge* cartridge;
 extern PPU* ppu;
+extern Controller* controller;
 
 // clang-format off
 static const int operationCycles[0x100] = {
@@ -184,7 +185,7 @@ uint8_t CPU::readByte(uint16_t addr) {
         }
     } else if (addr < 0x4020) {
         if (addr == 0x4016) {
-            /// TODO: joypad1
+            return controller->read();
         } else if (addr == 0x4017) {
             /// TODO: joypad2
         } else if (addr == 0x4015) {
@@ -244,7 +245,7 @@ void CPU::write(uint16_t addr, uint8_t data) {
             _skipCycles += _cycles & 1;
             ppu->OAMDMA(getPagePtr(data));
         } else if (addr == 0x4016) {
-            /// TODO: joypad1
+            controller->strobe(data);
         } else if (addr == 0x4017) {
             /// TODO: joypad2
         } else if (addr > 0x4017) {
