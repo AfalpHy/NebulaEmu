@@ -16,6 +16,10 @@ public:
 
     void step();
 
+    void setNMIPin() { _NMI_pin = true; }
+
+    void setIRQPin() { _IRQ_pin = true; }
+
 private:
     uint8_t* getPagePtr(uint16_t addr);
 
@@ -46,14 +50,14 @@ private:
     uint8_t _Y;
     union {
         struct {
-            uint8_t C : 1;  // carry
-            uint8_t Z : 1;  // zero
-            uint8_t I : 1;  // interrupt disable
-            uint8_t D : 1;  // decimal mode
-            uint8_t B : 1;  // break comand
-            uint8_t U : 1;  // unused always pushed as 1
-            uint8_t V : 1;  // overflow
-            uint8_t N : 1;  // negative
+            bool C : 1;  // carry
+            bool Z : 1;  // zero
+            bool I : 1;  // interrupt disable
+            bool D : 1;  // decimal mode
+            bool B : 1;  // break comand
+            bool U : 1;  // unused always pushed as 1
+            bool V : 1;  // overflow
+            bool N : 1;  // negative
         } bits;
         uint8_t value;
     } _P;

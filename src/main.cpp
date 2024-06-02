@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <getopt.h>
 
+#include <chrono>
 #include <iostream>
 
 #include "CPU.h"
@@ -14,7 +15,7 @@ namespace NebulaEmu {
 const int SCREEN_WIDTH = 256 * 3;
 const int SCREEN_HEIGHT = 240 * 3;
 
-uint32_t pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
+uint32_t* pixels = nullptr;
 
 Cartridge* cartridge = nullptr;
 CPU* cpu = nullptr;
@@ -24,11 +25,17 @@ void init() {
     cartridge = new Cartridge();
     cpu = new CPU();
     ppu = new PPU();
+    pixels = (uint32_t*)malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(uint32_t));
 }
 
 void run(string path) {
     cartridge->load(path);
     cpu->reset();
+    ppu->reset();
+
+    auto past = chrono::high_resolution_clock::now();
+    chrono::high_resolution_clock::duration m_elapsedTime;
+    chrono::nanoseconds cycleDuration(559);
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -39,10 +46,26 @@ void run(string path) {
 
     SDL_Texture* texture =
         SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
-
     bool quit = false;
     SDL_Event e;
     while (!quit) {
+        auto now = chrono::high_resolution_clock::now();
+        m_elapsedTime = now - past;
+        past = now;
+        while (m_elapsedTime > cycleDuration && !quit) {
+            cpu->step();
+
+            ppu->step();
+            ppu->step();
+            ppu->step();
+
+            m_elapsedTime -= cycleDuration;
+        }
+        SDL_UpdateTexture(texture, nullptr, pixels, SCREEN_WIDTH * sizeof(uint32_t));
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+        SDL_RenderPresent(renderer);
+
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
@@ -84,10 +107,6 @@ void run(string path) {
                         break;
                 }
             }
-            SDL_UpdateTexture(texture, nullptr, pixels, SCREEN_WIDTH * sizeof(uint32_t));
-            SDL_RenderClear(renderer);
-            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-            SDL_RenderPresent(renderer);
         }
     }
     SDL_DestroyTexture(texture);

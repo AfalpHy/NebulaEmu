@@ -108,7 +108,7 @@ enum CommonInstruction {
 void CPU::reset() {
     _A = _X = _Y = 0;
     _SP = 0XFD;
-    _P.value = 0X34;
+    _P.value = 0X24;
     _PC = readWord((0xFFFC));
     _IRQ_pin = _NMI_pin = false;
     return;
@@ -125,13 +125,13 @@ void CPU::step() {
     if (_NMI_pin) {
         _NMI_pin = _IRQ_pin = false;
         executeInterrupt(NMI_I);
-        // interrupt spend 7 cycles
+        // interrupt spend 7 cycles(include this cycle)
         _skipCycles += 6;
         return;
     } else if (_IRQ_pin) {
         _IRQ_pin = false;
         executeInterrupt(IRQ_I);
-        // interrupt spend 7 cycles
+        // interrupt spend 7 cycles(include this cycle)
         _skipCycles += 6;
         return;
     }
@@ -149,6 +149,7 @@ void CPU::step() {
 }
 
 uint8_t* CPU::getPagePtr(uint16_t addr) {
+    addr <<= 8;
     if (addr < 0x2000) {
         return &_RAM[addr & 0x7ff];
     } else if (addr < 0x4020) {
@@ -272,7 +273,7 @@ void CPU::setZN(uint8_t result) {
 }
 
 void CPU::addSkipCyclesIfPageCrossed(uint16_t cur, uint16_t next) {
-    if ((cur & 0xFF00) != (next & 0xFF)) {
+    if ((cur & 0xFF00) != (next & 0xFF00)) {
         _skipCycles += 1;
     }
 }
@@ -453,12 +454,12 @@ bool CPU::executeBranch(uint8_t opcode) {
 
 bool CPU::executeCommon(uint8_t opcode) {
     uint8_t addressMode = opcode & 0x1f;
-    opcode = opcode & 0x63;
+    opcode = opcode & 0xe3;
     uint16_t location = 0;
     switch (addressMode) {
         // indexedIndirect
         case 0 << 0 | 1: {
-            uint8_t zeroAddr = readByte(_PC) + _X;
+            uint8_t zeroAddr = readByte(_PC++) + _X;
             location = readByte(zeroAddr) | readByte(zeroAddr + 1) << 8;
             break;
         }
@@ -483,7 +484,7 @@ bool CPU::executeCommon(uint8_t opcode) {
             break;
         // indirect indexed
         case 4 << 2 | 1: {
-            uint8_t zeroAddr = readByte(_PC);
+            uint8_t zeroAddr = readByte(_PC++);
             location = readByte(zeroAddr) | readByte(zeroAddr + 1) << 8;
             if (opcode != STA) {
                 addSkipCyclesIfPageCrossed(location, location + _Y);
@@ -579,6 +580,7 @@ bool CPU::executeCommon(uint8_t opcode) {
             uint16_t sum = _A + operand + _P.bits.C;
             _P.bits.C = sum & 0x100;
             _P.bits.V = (_A ^ sum) & (operand ^ sum) & 0x80;
+            _A = sum;
             setZN(_A);
         } break;
         case STA:
@@ -596,8 +598,9 @@ bool CPU::executeCommon(uint8_t opcode) {
         case SBC: {
             operand = readByte(location);
             uint16_t sum = _A - operand - !_P.bits.C;
-            _P.bits.C = sum & 0x100;
-            _P.bits.V = (_A ^ sum) & (operand ^ sum) & 0x80;
+            _P.bits.C = !(sum & 0x100);
+            _P.bits.V = (_A ^ sum) & (~operand ^ sum) & 0x80;
+            _A = sum;
             setZN(_A);
         } break;
         case ASL:
@@ -608,7 +611,8 @@ bool CPU::executeCommon(uint8_t opcode) {
             } else {
                 operand = readByte(location);
                 _P.bits.C = operand & 0x80;
-                write(location, operand << 1);
+                operand = operand << 1;
+                write(location, operand);
                 setZN(operand);
             }
             break;
@@ -621,7 +625,8 @@ bool CPU::executeCommon(uint8_t opcode) {
             } else {
                 operand = readByte(location);
                 _P.bits.C = operand & 0x80;
-                write(location, (operand << 1) | tmp);
+                operand = (operand << 1) | tmp;
+                write(location, operand);
                 setZN(operand);
             }
         } break;
@@ -633,7 +638,8 @@ bool CPU::executeCommon(uint8_t opcode) {
             } else {
                 operand = readByte(location);
                 _P.bits.C = operand & 1;
-                write(location, operand >> 1);
+                operand = operand >> 1;
+                write(location, operand);
                 setZN(operand);
             }
             break;
@@ -646,7 +652,8 @@ bool CPU::executeCommon(uint8_t opcode) {
             } else {
                 operand = readByte(location);
                 _P.bits.C = operand & 1;
-                write(location, (operand >> 1) | (tmp << 7));
+                operand = (operand >> 1) | (tmp << 7);
+                write(location, operand);
                 setZN(operand);
             }
         } break;

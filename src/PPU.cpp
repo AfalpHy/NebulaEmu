@@ -8,7 +8,7 @@
 namespace NebulaEmu {
 
 extern Cartridge* cartridge;
-extern CPU* cpuu;
+extern CPU* cpu;
 
 extern uint32_t* pixels;
 
@@ -24,7 +24,8 @@ const unsigned systemPalette[] = {
 };
 
 void PPU::reset() {
-    _PPUCTRL.value = _PPUMASK.value = _PPUSTATUS.value = 0;
+    _PPUCTRL.value = _PPUSTATUS.value = 0;
+    _PPUMASK.value = 0x1E;
 
     _oddFrame = false;
 
@@ -34,11 +35,233 @@ void PPU::reset() {
 
     _OAMADDR = 0;
 
-    _scanline = 0;
+    _scanline = 261;
     _cycles = 0;
 };
 
-void PPU::step() {}
+void PPU::step() {
+    if (_scanline < 240) {  // Rendering
+        if (_cycles > 0 && _cycles <= 256) {
+            int x = _cycles - 1;
+            int y = _scanline;
+            bool bgOpaque = false;
+            uint16_t paletteEntry = 0;
+
+            // background enable
+            if (_PPUMASK.bits.b) {
+                int fineX = (_x + x) % 8;
+                if (_PPUMASK.bits.m || x >= 8) {
+                    uint16_t nameTableAddr = 0x2000 | (_v & 0x0FFF);
+                    uint16_t tileIndex = read(nameTableAddr);
+
+                    // 8*8 tile, get target line data by add fineY
+                    uint16_t patternTableAddr = tileIndex * 16 + ((_v >> 12) & 0x7);
+                    // add 0x1000 if high page
+                    patternTableAddr |= _PPUCTRL.bits.B << 12;
+
+                    paletteEntry = (read(patternTableAddr) >> (7 - fineX)) & 1;
+                    paletteEntry |= ((read(patternTableAddr + 8) >> (7 - fineX)) & 1) << 1;
+
+                    // The palette entry at $3F00 is the background colour and is used for transparency.
+                    // Addresses $3F04/$3F08/$3F0C are not used by the PPU when normally rendering
+                    bgOpaque = paletteEntry;
+
+                    // if bgOpaque is false, keep the palette entry as $3F00 for transparency
+                    // otherwise, continue to obtain the upper two bit
+                    if (bgOpaque) {
+                        uint16_t attributeTabelAddr = 0x23C0 | (_v & 0x0C00) | ((_v >> 4) & 0x38) | ((_v >> 2) & 0x07);
+                        auto attribute = read(attributeTabelAddr);
+                        // The layout of the byte is 33221100 where every two bits specifies the most significant two
+                        // colour bits for the specified square.
+                        // every suqre has 4 tile, map the tile to square to get the shift of attribute
+                        // |---------------------|
+                        // |          |          |
+                        // | Square 0 | Square 1 |
+                        // |          |          |
+                        // |----------+ ---------|
+                        // |          |          |
+                        // | Square 2 | Square 3 |
+                        // |          |          |
+                        // |---------------------|
+                        // Square bit 1:(coarse Y / 2) % 2
+                        // Square bit 0:(coarse X / 2) % 2
+                        // (bit 1|bit 0)*2 equals (bit 1|bit 0) << 1
+                        int shift = ((_v >> 4) & 4) | (_v & 2);
+                        paletteEntry |= ((attribute >> shift) & 0x3) << 2;
+                    }
+                }
+
+                if (fineX == 7) {
+                    if ((_v & 0x001F) == 31) {
+                        _v &= ~0x001F;
+                        _v ^= 0x400;
+                    } else {
+                        _v += 1;
+                    }
+                }
+            }
+
+            // sprite enable
+            if (_PPUMASK.bits.s && (_PPUMASK.bits.M || x >= 8)) {
+                for (auto i : _secondaryOAM) {
+                    uint8_t topX = _OAM[i * 4 + 3];
+
+                    if (x < topX || x >= topX + 8) {
+                        continue;
+                    }
+                    // Sprite data is delayed by one scanline;
+                    // you must subtract 1 from the sprite's Y coordinate before writing it,
+                    // this is why we plus 1 while reading
+                    uint8_t topY = _OAM[i * 4 + 0] + 1;
+                    uint8_t tileIndex = _OAM[i * 4 + 1];
+
+                    // 76543210
+                    // ||||||||
+                    // ||||||++- Palette (4 to 7) of sprite
+                    // |||+++--- Unimplemented (read 0)
+                    // ||+------ Priority (0: in front of background; 1: behind background)
+                    // |+------- Flip sprite horizontally
+                    // +-------- Flip sprite vertically
+                    uint8_t attribute = _OAM[i * 4 + 2];
+
+                    int height = (_PPUCTRL.bits.H) ? 16 : 8;
+
+                    int xShift = x - topX;
+                    int offsetY = (y - topY) % height;
+
+                    // not flipping horizontally
+                    if ((attribute & 0x40) == 0) {
+                        xShift = 7 - xShift;
+                    }
+                    // flipping vertically
+                    if ((attribute & 0x80) != 0) {
+                        offsetY = (height - 1) - offsetY;
+                    }
+
+                    uint16_t patternTableAddr = 0;
+
+                    if (!_PPUCTRL.bits.H) {
+                        patternTableAddr = tileIndex * 16 + offsetY;
+                        if (_PPUCTRL.bits.S) {
+                            patternTableAddr += 0x1000;
+                        }
+                    } else {  // 8x16 sprites
+                        // tow tile: top tile and bottom tile
+                        // memory map: top tile(byte 0, byte 1) bottom tile(byte 2, byte 3)
+                        // bit-3 is one if it is the bottom tile of the sprite, multiply by two to get the next pattern
+                        offsetY = (offsetY & 7) | ((offsetY & 8) << 1);
+                        patternTableAddr = (tileIndex >> 1) * 32 + offsetY;
+                        // For 8x16 sprites (bit 5 of PPUCTRL set), the PPU ignores the pattern table selection and
+                        // selects a pattern table from bit 0 of this number.
+                        patternTableAddr |= (tileIndex & 1) << 12;
+                    }
+                    uint8_t sprPaletteEntry = (read(patternTableAddr) >> (xShift)) & 1;      // bit 0 of palette entry
+                    sprPaletteEntry |= ((read(patternTableAddr + 8) >> (xShift)) & 1) << 1;  // bit 1
+
+                    // sprite is transparency
+                    if (sprPaletteEntry == 0) {
+                        continue;
+                    }
+                    sprPaletteEntry |= (attribute & 0x3) << 2;  // upper two bits
+                    sprPaletteEntry |= 0x10;                    // Select sprite palette
+
+                    // if sprite is foreground or backgournd is opaque
+                    if (!(attribute & 0x20) || !bgOpaque) {
+                        paletteEntry = sprPaletteEntry;
+                    }
+                    // Sprite-0 hit detection
+                    if (!_PPUSTATUS.bits.S && i == 0 && bgOpaque) {
+                        _PPUSTATUS.bits.S = true;
+                    }
+
+                    break;
+                }
+            }
+            _nesPixels[x][y] = systemPalette[read(paletteEntry + 0x3F00)];
+        }
+        if (_cycles == 256 && _PPUMASK.bits.b) {
+            if ((_v & 0x7000) != 0x7000) {  // if fine Y < 7
+                _v += 0x1000;               // increment fine Y
+            } else {
+                _v &= ~0x7000;               // fine Y = 0
+                int y = (_v & 0x03E0) >> 5;  // let y = coarse Y
+                if (y == 29) {
+                    y = 0;             // coarse Y = 0
+                    _v ^= 0x0800;      // switch vertical nametable
+                } else if (y == 31) {  // coarse Y = 0, nametable not switched
+                    y = 0;
+                } else {  // increment coarse Y
+                    y += 1;
+                }
+                _v = (_v & ~0x03E0) | (y << 5);  // put coarse Y back into v
+            }
+        }
+        if (_cycles == 257 && renderEnable()) {
+            // If rendering is enabled, the PPU copies all bits related to horizontal position from t to v
+            _v &= ~0x41f;
+            _v |= _t & 0x41f;
+        }
+        // update _secondaryOAM for next line
+        if (_cycles == 340) {
+            int height = (_PPUCTRL.bits.H) ? 16 : 8;
+            _secondaryOAM.clear();
+
+            for (int i = _OAMADDR / 4; i < 64; ++i) {
+                int topY = _OAM[i * 4];
+                if (_scanline >= topY && _scanline < topY + height) {
+                    if (_secondaryOAM.size() >= 8) {
+                        _PPUSTATUS.bits.O = true;
+                        break;
+                    }
+                    _secondaryOAM.push_back(i);
+                }
+            }
+        }
+    } else if (_scanline == 240) {  // PostRender
+        // update pixel once per frame
+        if (_cycles == 1) {
+            for (int i = 0; i < 256 * 3; i++) {
+                for (int j = 0; j < 240 * 3; j++) {
+                    pixels[j * 256 * 3 + i] = _nesPixels[i / 3][j / 3];
+                }
+            }
+        }
+    } else if (_scanline < 261) {  // Vertical blanking
+        if (_scanline == 241 && _cycles == 1) {
+            _PPUSTATUS.bits.V = true;
+            if (_PPUCTRL.bits.V) {
+                cpu->setNMIPin();
+            }
+        }
+    } else {  // PreRender
+        if (_cycles == 1) {
+            _PPUSTATUS.bits.V = false;
+            _PPUSTATUS.bits.S = false;
+            _PPUSTATUS.bits.O = false;
+        } else if (_cycles == 257 && renderEnable()) {
+            // If rendering is enabled, the PPU copies all bits related to horizontal position from t to v
+            _v &= ~0x41f;
+            _v |= _t & 0x41f;
+        } else if (_cycles >= 280 && _cycles <= 304 && renderEnable()) {
+            // If rendering is enabled, the PPU copies all bits related to vertical position from t to v:
+            _v &= 0x41f;
+            _v |= _t & ~0x41f;
+        } else if (_cycles == 339 && (_oddFrame & renderEnable())) {
+            // skipped end of the scanline
+            _cycles++;
+        }
+    }
+
+    _cycles++;
+    if (_cycles == 341) {
+        _cycles = 0;
+        _scanline++;
+        if (_scanline == 262) {
+            _scanline = 0;
+            _oddFrame = !_oddFrame;
+        }
+    }
+}
 
 uint8_t PPU::readPPUSTATUS() {
     uint8_t tmp = _PPUSTATUS.value;
@@ -117,7 +340,7 @@ void PPU::writePPUADDR(uint8_t addr) {
 }
 
 void PPU::writePPUDATA(uint8_t data) {
-    _VRAM[_v] = data;
+    write(_v, data);
     // Outside of rendering, reads from or writes to $2007 will add either 1 or 32 to v depending on the VRAM increment
     // bit set via $2000.
     _v += addrInc();
@@ -172,9 +395,9 @@ uint8_t PPU::read(uint16_t addr) {
         }
     } else {
         addr = addr & 0x1f;
-        //  every four bytes in the palettes is a copy of $3F00
-        if (addr % 4 == 0) {
-            addr = 0;
+        //  Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C.
+        if (addr >= 0x10 && addr % 4 == 0) {
+            addr &= 0xf;
         }
         return _palette[addr];
     }
@@ -227,9 +450,9 @@ void PPU::write(uint16_t addr, uint8_t data) {
         }
     } else {
         addr = addr & 0x1f;
-        //  every four bytes in the palettes is a copy of $3F00
-        if (addr % 4 == 0) {
-            addr = 0;
+        //  Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C.
+        if (addr >= 0x10 && addr % 4 == 0) {
+            addr &= 0xf;
         }
         _palette[addr] = data;
     }
