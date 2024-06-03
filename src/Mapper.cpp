@@ -21,11 +21,13 @@ uint8_t MapperNROM::readPRG(uint16_t addr) { return cartridge->_PRG_ROM[addr - 0
 uint8_t MapperNROM::readCHR(uint16_t addr) { return cartridge->_CHR_ROM[addr]; }
 
 void MapperNROM::wirtePRG(uint16_t addr, uint8_t data) {
+    (void)data;
     std::cerr << "write only-read memory at " << addr << std::endl;
     exit(1);
 }
 
 void MapperNROM::wirteCHR(uint16_t addr, uint8_t data) {
+    (void)data;
     std::cerr << "write only-read memory at " << addr << std::endl;
     exit(1);
 }
