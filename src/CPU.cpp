@@ -141,12 +141,11 @@ void CPU::step() {
     int cycleLength = operationCycles[opcode];
 
     if (cycleLength && (executeImplied(opcode) || executeBranch(opcode) || executeCommon(opcode))) {
+        _skipCycles += cycleLength - 1;
     } else {
         std::cerr << "unkown instruction" << std::endl;
         exit(1);
     }
-
-    _skipCycles += cycleLength - 1;
 }
 
 uint8_t* CPU::getPagePtr(uint16_t addr) {

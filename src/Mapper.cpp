@@ -16,7 +16,15 @@ Mapper* Mapper::createMapper(unsigned num) {
     }
 }
 
-uint8_t MapperNROM::readPRG(uint16_t addr) { return cartridge->_PRG_ROM[addr - 0x8000]; }
+uint8_t MapperNROM::readPRG(uint16_t addr) {
+    // CPU $8000-$BFFF: First 16 KB of ROM.
+    // CPU $C000-$FFFF: Last 16 KB of ROM (NROM-256) or mirror of $8000-$BFFF (NROM-128).
+    if (cartridge->_PRG_ROM.size() > 0x4000) {  // NROM-256
+        return cartridge->_PRG_ROM[addr - 0x8000];
+    } else {  // NROM-128
+        return cartridge->_PRG_ROM[(addr - 0x8000) & 0x3fff];
+    }
+}
 
 uint8_t MapperNROM::readCHR(uint16_t addr) { return cartridge->_CHR_ROM[addr]; }
 
