@@ -40,10 +40,23 @@ void run(string path) {
     chrono::high_resolution_clock::duration m_elapsedTime;
     chrono::nanoseconds cycleDuration(559);
 
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
 
     SDL_Window* window =
         SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+
+    SDL_GameController* GameController = nullptr;
+    for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+        if (SDL_IsGameController(i)) {
+            GameController = SDL_GameControllerOpen(i);
+            if (GameController) {
+                cout << "Opened controller " << SDL_GameControllerName(GameController) << endl;
+                break;
+            } else {
+                cerr << "Could not open gamecontroller " << i << ": " << SDL_GetError() << endl;
+            }
+        }
+    }
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
@@ -132,6 +145,86 @@ void run(string path) {
                     default:
                         cout << "Some other key released." << endl;
                         break;
+                }
+            } else if (e.type == SDL_CONTROLLERBUTTONDOWN) {
+                switch (e.cbutton.button) {
+                    case SDL_CONTROLLER_BUTTON_A:
+                        controller->set(A);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_B:
+                        controller->set(B);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_BACK:
+                        controller->set(Select);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_START:
+                        controller->set(Start);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_UP:
+                        controller->set(Up);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                        controller->set(Down);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                        controller->set(Left);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                        controller->set(Right);
+                        break;
+                    default:
+                        cout << "Some other button pressed." << endl;
+                        break;
+                }
+            } else if (e.type == SDL_CONTROLLERBUTTONUP) {
+                switch (e.cbutton.button) {
+                    case SDL_CONTROLLER_BUTTON_A:
+                        controller->clear(A);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_B:
+                        controller->clear(B);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_BACK:
+                        controller->clear(Select);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_START:
+                        controller->clear(Start);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_UP:
+                        controller->clear(Up);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                        controller->clear(Down);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                        controller->clear(Left);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                        controller->clear(Right);
+                        break;
+                    default:
+                        cout << "Some other button released." << endl;
+                        break;
+                }
+            } else if (e.type == SDL_CONTROLLERAXISMOTION) {
+                if (e.caxis.axis == SDL_CONTROLLER_AXIS_LEFTX) {
+                    if (e.caxis.value < -8000) {
+                        controller->set(Left);
+                    } else if (e.caxis.value > 8000) {
+                        controller->set(Right);
+                    } else {
+                        controller->clear(Left);
+                        controller->clear(Right);
+                    }
+                } else if (e.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY) {
+                    if (e.caxis.value < -8000) {
+                        controller->set(Down);
+                    } else if (e.caxis.value > 8000) {
+                        controller->set(Up);
+                    } else {
+                        controller->clear(Up);
+                        controller->clear(Down);
+                    }
                 }
             }
         }
