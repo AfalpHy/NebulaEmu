@@ -165,7 +165,7 @@ void PPU::step() {
                     sprPaletteEntry |= (attribute & 0x3) << 2;  // upper two bits
                     sprPaletteEntry |= 0x10;                    // Select sprite palette
 
-                    // if sprite is foreground or backgournd is opaque
+                    // if sprite is foreground or backgournd is not opaque
                     if (!(attribute & 0x20) || !bgOpaque) {
                         paletteEntry = sprPaletteEntry;
                     }
