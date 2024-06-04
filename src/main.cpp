@@ -13,8 +13,7 @@ using namespace std;
 
 namespace NebulaEmu {
 
-const int SCREEN_WIDTH = 256 * 3;
-const int SCREEN_HEIGHT = 240 * 3;
+int scale = 3;
 
 uint32_t* pixels = nullptr;
 
@@ -42,8 +41,8 @@ void run(string path) {
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
 
-    SDL_Window* window =
-        SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+    SDL_Window* window = SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                          SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale, 0);
 
     for (int i = 0; i < SDL_NumJoysticks(); ++i) {
         SDL_GameController* GameController = SDL_GameControllerOpen(i);

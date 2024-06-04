@@ -2,6 +2,10 @@
 
 #include <cstdint>
 #include <vector>
+
+#define SCREEN_WIDTH 256
+#define SCREEN_HEIGHT 240
+
 namespace NebulaEmu {
 
 class PPU {
@@ -113,7 +117,7 @@ private:
     uint8_t _OAM[0x100];
     std::vector<uint8_t> _secondaryOAM;
 
-    uint32_t _nesPixels[256][240];
+    uint32_t _buffer[SCREEN_WIDTH][SCREEN_HEIGHT];
 
     int _scanline;
     int _cycles;

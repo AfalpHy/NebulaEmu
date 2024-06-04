@@ -177,7 +177,7 @@ void PPU::step() {
                     break;
                 }
             }
-            _nesPixels[x][y] = systemPalette[read(paletteEntry + 0x3F00)];
+            _buffer[x][y] = systemPalette[read(paletteEntry + 0x3F00)];
         }
         if (_cycles == 256 && _PPUMASK.bits.b) {
             if ((_v & 0x7000) != 0x7000) {  // if fine Y < 7
@@ -220,9 +220,9 @@ void PPU::step() {
     } else if (_scanline == 240) {  // PostRender
         // update pixel once per frame
         if (_cycles == 1) {
-            for (int i = 0; i < 256 * 3; i++) {
-                for (int j = 0; j < 240 * 3; j++) {
-                    pixels[j * 256 * 3 + i] = _nesPixels[i / 3][j / 3];
+            for (int i = 0; i < SCREEN_WIDTH; i++) {
+                for (int j = 0; j < SCREEN_HEIGHT; j++) {
+                    pixels[j * SCREEN_WIDTH + i] = _buffer[i][j];
                 }
             }
         }
