@@ -184,9 +184,9 @@ uint8_t CPU::readByte(uint16_t addr) {
         }
     } else if (addr < 0x4020) {
         if (addr == 0x4016) {
-            return controller->read();
+            return controller->readJoyStick1Data();
         } else if (addr == 0x4017) {
-            /// TODO: joypad2
+            return controller->readJoyStick2Data();
         } else if (addr == 0x4015) {
             // APU(ignored), just return 0
             return 0;
