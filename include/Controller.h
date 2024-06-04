@@ -1,7 +1,6 @@
 #pragma once
 
 #include <SDL2/SDL_events.h>
-#include <SDL2/SDL_gamecontroller.h>
 
 #include <cstdint>
 
@@ -20,11 +19,9 @@ public:
 
 private:
     // joystick 1
-    SDL_GameController* _controller1 = nullptr;
     uint8_t _state1 = 0;
     uint8_t _shift1 = 0;
     // joystick 2
-    SDL_GameController* _controller2 = nullptr;
     uint8_t _state2 = 0;
     uint8_t _shift2 = 0;
 

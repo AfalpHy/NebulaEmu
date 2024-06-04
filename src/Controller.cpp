@@ -52,7 +52,7 @@ void Controller::update(SDL_Event &e) {
             case SDLK_k:
                 _state1 |= B;
                 break;
-            case SDLK_SPACE:
+            case SDLK_l:
                 _state1 |= Select;
                 break;
             case SDLK_RETURN:
@@ -70,6 +70,30 @@ void Controller::update(SDL_Event &e) {
             case SDLK_d:
                 _state1 |= Right;
                 break;
+            case SDLK_KP_1:
+                _state2 |= A;
+                break;
+            case SDLK_KP_2:
+                _state2 |= B;
+                break;
+            case SDLK_KP_3:
+                _state2 |= Select;
+                break;
+            case SDLK_KP_ENTER:
+                _state2 |= Start;
+                break;
+            case SDLK_UP:
+                _state2 |= Up;
+                break;
+            case SDLK_DOWN:
+                _state2 |= Down;
+                break;
+            case SDLK_LEFT:
+                _state2 |= Left;
+                break;
+            case SDLK_RIGHT:
+                _state2 |= Right;
+                break;
             default:
                 break;
         }
@@ -81,7 +105,7 @@ void Controller::update(SDL_Event &e) {
             case SDLK_k:
                 _state1 &= ~B;
                 break;
-            case SDLK_SPACE:
+            case SDLK_l:
                 _state1 &= ~Select;
                 break;
             case SDLK_RETURN:
@@ -98,6 +122,30 @@ void Controller::update(SDL_Event &e) {
                 break;
             case SDLK_d:
                 _state1 &= ~Right;
+                break;
+            case SDLK_KP_1:
+                _state2 &= ~A;
+                break;
+            case SDLK_KP_2:
+                _state2 &= ~B;
+                break;
+            case SDLK_KP_3:
+                _state2 &= ~Select;
+                break;
+            case SDLK_KP_ENTER:
+                _state2 &= ~Start;
+                break;
+            case SDLK_UP:
+                _state2 &= ~Up;
+                break;
+            case SDLK_DOWN:
+                _state2 &= ~Down;
+                break;
+            case SDLK_LEFT:
+                _state2 &= ~Left;
+                break;
+            case SDLK_RIGHT:
+                _state2 &= ~Right;
                 break;
             default:
                 break;
