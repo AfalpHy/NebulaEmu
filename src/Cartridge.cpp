@@ -51,11 +51,11 @@ void Cartridge::load(string path) {
     _mapper = Mapper::createMapper((header[7] & 0xF0) | ((header[6] & 0xF0) >> 4));
 
     unsigned _PRG_ROM_size = header[4] * 0x4000;
-    _PRG_ROM.reserve(_PRG_ROM_size);
+    _PRG_ROM.resize(_PRG_ROM_size);
     file.read((char*)&_PRG_ROM[0], _PRG_ROM_size);
 
     unsigned _CHR_ROM_size = header[5] * 0x2000;
-    _CHR_ROM.reserve(_CHR_ROM_size);
+    _CHR_ROM.resize(_CHR_ROM_size);
     file.read((char*)&_CHR_ROM[0], _CHR_ROM_size);
 }
 
