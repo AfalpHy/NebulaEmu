@@ -36,7 +36,10 @@ void run(string path) {
     ppu->reset();
 
     auto past = chrono::high_resolution_clock::now();
-    chrono::high_resolution_clock::duration m_elapsedTime;
+    chrono::high_resolution_clock::duration elapsedTime;
+    // The NES master clock is 21.47727 MHz (NTSC).
+    // The CPU operates at approximately 1.789772 MHz (master clock divided by 12).
+    // The CPU completes one cycle in 1/1.789772 MHz = 559ns
     chrono::nanoseconds cycleDuration(559);
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
@@ -62,16 +65,17 @@ void run(string path) {
     SDL_Event e;
     while (!quit) {
         auto now = chrono::high_resolution_clock::now();
-        m_elapsedTime = now - past;
+        elapsedTime = now - past;
         past = now;
-        while (m_elapsedTime > cycleDuration) {
+        while (elapsedTime > cycleDuration) {
             cpu->step();
 
+            // The PPU operates at approximately 5.369318 MHz (master clock divided by 4).
             ppu->step();
             ppu->step();
             ppu->step();
 
-            m_elapsedTime -= cycleDuration;
+            elapsedTime -= cycleDuration;
         }
         SDL_UpdateTexture(texture, nullptr, pixels, SCREEN_WIDTH * sizeof(uint32_t));
         SDL_RenderClear(renderer);
