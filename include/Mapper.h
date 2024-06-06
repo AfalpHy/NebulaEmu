@@ -8,7 +8,7 @@ enum NameTableMirroring { Horizontal, Vertical, SingleScreen, FourScreen };
 
 class Mapper {
 public:
-    static Mapper* createMapper(unsigned num);
+    static Mapper* createMapper(uint32_t num);
 
     virtual uint8_t readPRG(uint16_t addr) = 0;
     virtual uint8_t readCHR(uint16_t addr) = 0;

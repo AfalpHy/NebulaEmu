@@ -13,7 +13,7 @@ extern PPU* ppu;
 extern Controller* controller;
 
 // clang-format off
-static const int operationCycles[0x100] = {
+static const uint32_t operationCycles[0x100] = {
         7, 6, 0, 0, 0, 3, 5, 0, 3, 2, 2, 0, 0, 4, 6, 0,
         2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
         6, 6, 0, 0, 3, 3, 5, 0, 4, 2, 2, 0, 4, 4, 6, 0,
@@ -138,7 +138,7 @@ void CPU::step() {
     }
 
     uint8_t opcode = readByte(_PC++);
-    int cycleLength = operationCycles[opcode];
+    uint32_t cycleLength = operationCycles[opcode];
 
     if (cycleLength && (executeImplied(opcode) || executeBranch(opcode) || executeCommon(opcode))) {
         _skipCycles += cycleLength - 1;

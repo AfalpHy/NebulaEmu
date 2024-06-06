@@ -1,6 +1,7 @@
 #include "PPU.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 
 #include "CPU.h"
@@ -12,7 +13,7 @@ extern CPU* cpu;
 
 extern uint32_t* pixels;
 
-const unsigned systemPalette[] = {
+const uint32_t systemPalette[] = {
     0x666666ff, 0x002a88ff, 0x1412a7ff, 0x3b00a4ff, 0x5c007eff, 0x6e0040ff, 0x6c0600ff, 0x561d00ff,
     0x333500ff, 0x0b4800ff, 0x005200ff, 0x004f08ff, 0x00404dff, 0x000000ff, 0x000000ff, 0x000000ff,
     0xadadadff, 0x155fd9ff, 0x4240ffff, 0x7527feff, 0xa01accff, 0xb71e7bff, 0xb53120ff, 0x994e00ff,
@@ -177,7 +178,7 @@ void PPU::step() {
                     break;
                 }
             }
-            _buffer[x][y] = systemPalette[read(paletteEntry + 0x3F00)];
+            _buffer[y][x] = systemPalette[read(paletteEntry + 0x3F00)];
         }
         if (_cycles == 256 && _PPUMASK.bits.b) {
             if ((_v & 0x7000) != 0x7000) {  // if fine Y < 7
@@ -220,11 +221,7 @@ void PPU::step() {
     } else if (_scanline == 240) {  // PostRender
         // update pixel once per frame
         if (_cycles == 1) {
-            for (int i = 0; i < SCREEN_WIDTH; i++) {
-                for (int j = 0; j < SCREEN_HEIGHT; j++) {
-                    pixels[j * SCREEN_WIDTH + i] = _buffer[i][j];
-                }
-            }
+            memcpy(pixels, _buffer, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(uint32_t));
         }
     } else if (_scanline < 261) {  // Vertical blanking
         if (_scanline == 241 && _cycles == 1) {

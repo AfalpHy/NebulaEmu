@@ -7,7 +7,7 @@ namespace NebulaEmu {
 
 extern Cartridge* cartridge;
 
-Mapper* Mapper::createMapper(unsigned num) {
+Mapper* Mapper::createMapper(uint32_t num) {
     switch (num) {
         case 0:
             return new MapperNROM();

@@ -40,21 +40,22 @@ void Cartridge::load(string path) {
         // _trainer = (uint8_t*)malloc(512);
         // file.read((char*)_trainer, 512);
         cerr << "Trainer unsupported" << endl;
-        exit(1);
+        exit(2);
     }
 
     if (header[6] & 0x08) {
-        // poorly supporting
-        _mirroring = FourScreen;
+        // _mirroring = FourScreen;
+        std::cerr << "unsupported mirroing" << std::endl;
+        exit(2);
     }
 
     _mapper = Mapper::createMapper((header[7] & 0xF0) | ((header[6] & 0xF0) >> 4));
 
-    unsigned _PRG_ROM_size = header[4] * 0x4000;
+    uint32_t _PRG_ROM_size = header[4] * 0x4000;
     _PRG_ROM.resize(_PRG_ROM_size);
     file.read((char*)&_PRG_ROM[0], _PRG_ROM_size);
 
-    unsigned _CHR_ROM_size = header[5] * 0x2000;
+    uint32_t _CHR_ROM_size = header[5] * 0x2000;
     _CHR_ROM.resize(_CHR_ROM_size);
     file.read((char*)&_CHR_ROM[0], _CHR_ROM_size);
 }

@@ -13,7 +13,7 @@ using namespace std;
 
 namespace NebulaEmu {
 
-int scale = 3;
+uint32_t scale = 3;
 
 uint32_t* pixels = nullptr;
 
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
 
     if (argc == 1) {
         displayHelpMessage();
-        exit(0);
+        return 0;
     }
     int opt;
     while ((opt = getopt_long(argc, argv, "-h", table, NULL)) != -1) {
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
                 displayHelpMessage();
                 break;
             default:
-                exit(-1);
+                return 1;
         }
     }
 
