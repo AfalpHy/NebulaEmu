@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "APU.h"
 #include "Cartridge.h"
 #include "Controller.h"
 #include "Mapper.h"
@@ -9,6 +10,7 @@
 namespace NebulaEmu {
 
 extern Cartridge* cartridge;
+extern APU* apu;
 extern PPU* ppu;
 extern Controller* controller;
 
@@ -188,8 +190,7 @@ uint8_t CPU::readByte(uint16_t addr) {
         } else if (addr == 0x4017) {
             return controller->readJoyStick2Data();
         } else if (addr == 0x4015) {
-            // APU(ignored), just return 0
-            return 0;
+            return apu->readStatus();
         } else {
             std::cerr << "read from unmapped addr" << std::endl;
             exit(1);
@@ -239,19 +240,85 @@ void CPU::write(uint16_t addr, uint8_t data) {
                 exit(1);
         }
     } else if (addr < 0x4020) {
-        if (addr == 0x4014) {
-            _skipCycles += 513;
-            _skipCycles += _cycles & 1;
-            ppu->OAMDMA(getPagePtr(data));
-        } else if (addr == 0x4016) {
-            controller->strobe(data);
-        } else if (addr == 0x4017) {
-            /// TODO: joypad2
-        } else if (addr > 0x4017) {
-            std::cerr << "write to ummapped addr" << std::endl;
-            exit(1);
-        } else {
-            // APU(ignored)
+        // std::cout << std::hex << addr << " " << +data << std::endl;
+        switch (addr) {
+            case 0x4000:
+                apu->writePulse0(true, data);
+                break;
+            case 0x4001:
+                apu->writePulse1(true, data);
+                break;
+            case 0x4002:
+                apu->writePulse2(true, data);
+                break;
+            case 0x4003:
+                apu->writePulse3(true, data);
+                break;
+            case 0x4004:
+                apu->writePulse0(false, data);
+                break;
+            case 0x4005:
+                apu->writePulse1(false, data);
+                break;
+            case 0x4006:
+                apu->writePulse2(false, data);
+                break;
+            case 0x4007:
+                apu->writePulse3(false, data);
+                break;
+            case 0x4008:
+                apu->writeTriangle0(data);
+                break;
+            case 0x4009:
+                // Unused
+                break;
+            case 0x400A:
+                apu->writeTriangle2(data);
+                break;
+            case 0x400B:
+                apu->writeTriangle2(data);
+                break;
+            case 0x400C:
+                apu->writeNoise0(data);
+                break;
+            case 0x400D:
+                // Unused
+                break;
+            case 0x400E:
+                apu->writeNoise2(data);
+                break;
+            case 0x400F:
+                apu->writeNoise3(data);
+                break;
+            case 0x4010:
+                apu->writeDMC0(data);
+                break;
+            case 0x4011:
+                apu->writeDMC1(data);
+                break;
+            case 0x4012:
+                apu->writeDMC2(data);
+                break;
+            case 0x4013:
+                apu->writeDMC3(data);
+                break;
+            case 0x4014:
+                _skipCycles += 513;
+                _skipCycles += _cycles & 1;
+                ppu->OAMDMA(getPagePtr(data));
+                break;
+            case 0x4015:
+                apu->writeStatus(data);
+                break;
+            case 0x4016:
+                controller->strobe(data);
+                break;
+            case 0x4017:
+                apu->writeFrameCounter(data);
+                break;
+            default:
+                std::cerr << "write to ummapped addr" << std::endl;
+                exit(1);
         }
     } else if (addr < 0x6000) {
         std::cerr << "write to unsupported addr" << std::endl;

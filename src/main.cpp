@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 
+#include "APU.h"
 #include "CPU.h"
 #include "Cartridge.h"
 #include "Controller.h"
@@ -18,34 +19,47 @@ uint32_t scale = 3;
 uint32_t* pixels = nullptr;
 
 Cartridge* cartridge = nullptr;
+APU* apu = nullptr;
 CPU* cpu = nullptr;
 PPU* ppu = nullptr;
 Controller* controller = nullptr;
 
 void init() {
     cartridge = new Cartridge();
+    apu = new APU();
     cpu = new CPU();
     ppu = new PPU();
     controller = new Controller();
     pixels = (uint32_t*)malloc(SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(uint32_t));
 }
 
+void audioCallback(void* userdata, uint8_t* stream, int len) {
+    (void)userdata;
+    // for (int i = 0; i < len; i++) {
+    //     stream[i] = apu->sample();
+    // }
+}
+
 void run(string path) {
-    cartridge->load(path);
-    cpu->reset();
-    ppu->reset();
-
-    auto past = chrono::high_resolution_clock::now();
-    chrono::high_resolution_clock::duration elapsedTime;
-    // The NES master clock is 21.47727 MHz (NTSC).
-    // The CPU operates at approximately 1.789772 MHz (master clock divided by 12).
-    // The CPU completes one cycle in 1/1.789772 MHz = 559ns
-    chrono::nanoseconds cycleDuration(559);
-
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER);
 
     SDL_Window* window = SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                           SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale, 0);
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+    SDL_Texture* texture =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    SDL_AudioSpec spec;
+    spec.freq = 44100;
+    spec.format = AUDIO_U8;
+    spec.channels = 1;
+    spec.callback = audioCallback;
+
+    if (SDL_OpenAudio(&spec, NULL) < 0) {
+        cerr << "Could not open audio" << SDL_GetError() << endl;
+    }
 
     for (int i = 0; i < SDL_NumJoysticks(); ++i) {
         SDL_GameController* GameController = SDL_GameControllerOpen(i);
@@ -56,21 +70,38 @@ void run(string path) {
         }
     }
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    cartridge->load(path);
+    apu->reset();
+    cpu->reset();
+    ppu->reset();
 
-    SDL_Texture* texture =
-        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+    auto past = chrono::high_resolution_clock::now();
+    chrono::high_resolution_clock::duration elapsedTime(0);
+    // The NES master clock is 21.47727 MHz (NTSC).
+    // The CPU operates at approximately 1.789772 MHz (master clock divided by 12).
+    // The PPU operates at approximately 5.369318 MHz (master clock divided by 4).
+    // The CPU completes one cycle in 1/1.789772 MHz = 559ns
+    // The sequencer is clocked on every other CPU cycle, so 2 CPU cycles = 1 APU cycle
+    chrono::nanoseconds cycleDuration(559 * 2);
+
+    // audio play begin
+    SDL_PauseAudio(0);
 
     bool quit = false;
     SDL_Event e;
     while (!quit) {
         auto now = chrono::high_resolution_clock::now();
-        elapsedTime = now - past;
+        elapsedTime += now - past;
         past = now;
         while (elapsedTime > cycleDuration) {
+            apu->step();
+
+            cpu->step();
             cpu->step();
 
-            // The PPU operates at approximately 5.369318 MHz (master clock divided by 4).
+            ppu->step();
+            ppu->step();
+            ppu->step();
             ppu->step();
             ppu->step();
             ppu->step();
@@ -94,6 +125,8 @@ void run(string path) {
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+
+    SDL_CloseAudio();
 
     SDL_Quit();
 }
