@@ -43,15 +43,12 @@ void APU::step() {
 
 uint8_t APU::sample() {
     _sampleIndex++;
-
-    // return linearApproximationMix() * 255;
-    return _sampleIndex;
+    return linearApproximationMix() * 255;
 }
 
 uint8_t APU::readStatus() {
     uint8_t ret = (_noise.lengthCounter > 0) << 3 | (_triangle.lengthCounter > 0) << 2 |
                   (_pulse2.lengthCounter > 0) << 1 | (_pulse1.lengthCounter > 0);
-    std::cout << "ret " << ret << std::endl;
     return ret;
 }
 
@@ -72,8 +69,12 @@ void APU::writePulse0(bool one, uint8_t data) {
 void APU::writePulse1(bool one, uint8_t data) {
     if (one) {
         _pulse1.sweepUnit.value = data;
+        // side effect
+        _pulse1.sweepReload = true;
     } else {
         _pulse2.sweepUnit.value = data;
+        // side effect
+        _pulse2.sweepReload = true;
     }
 }
 
@@ -148,6 +149,7 @@ void APU::writeDMC3(uint8_t data) { _DMC.sampleLength = data; }
 void APU::writeStatus(uint8_t data) { _State.value = data & 0x1F; }
 
 void APU::writeFrameCounter(uint8_t data) {
+    (void)data;
     // _M = data >> 7;
     // _I = (data >> 6) & 1;
     // _cycles = 0;
@@ -159,7 +161,7 @@ float APU::linearApproximationMix() {
     return pulseOut + tndOut;
 }
 
-uint8_t APU::calculatePulse(PulseChannel& pulse) { return 0; }
+uint8_t APU::calculatePulse(PulseChannel& pulse) { return pulse.output; }
 
 uint8_t APU::calculateTriangle() { return 0; }
 
@@ -171,11 +173,11 @@ void APU::quarterFrameClock() {
     if (_pulse1.envelopStart) {
         // if the start flag is clear, the divider is clocked, otherwise the start flag is cleared
         _pulse1.envelopStart = false;
-        _pulse1.divider = _pulse1.volume;
+        _pulse1.envelopDivider = _pulse1.volume;
         _pulse1.decayLevel = 15;
     } else {
-        if (_pulse1.divider == 0) {
-            _pulse1.divider = _pulse1.volume;
+        if (_pulse1.envelopDivider == 0) {
+            _pulse1.envelopDivider = _pulse1.volume;
             if (_pulse1.decayLevel != 0) {
                 _pulse1.decayLevel--;
             } else {
@@ -184,7 +186,7 @@ void APU::quarterFrameClock() {
                 }
             }
         } else {
-            _pulse1.divider--;
+            _pulse1.envelopDivider--;
         }
     }
     if (_pulse1.constantVolume) {

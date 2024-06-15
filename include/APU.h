@@ -70,9 +70,12 @@ private:
         uint8_t lengthCounter;
 
         bool envelopStart;
-        uint8_t divider;
+        uint8_t envelopDivider;
         uint8_t decayLevel;
         uint8_t output;
+
+        bool sweepReload;
+        uint8_t sweepDivider;
     } _pulse1, _pulse2;
 
     struct TriangleChannel {

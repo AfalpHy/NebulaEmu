@@ -35,9 +35,9 @@ void init() {
 
 void audioCallback(void* userdata, uint8_t* stream, int len) {
     (void)userdata;
-    // for (int i = 0; i < len; i++) {
-    //     stream[i] = apu->sample();
-    // }
+    for (int i = 0; i < len; i++) {
+        stream[i] = apu->sample();
+    }
 }
 
 void run(string path) {
@@ -51,15 +51,15 @@ void run(string path) {
     SDL_Texture* texture =
         SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    SDL_AudioSpec spec;
-    spec.freq = 44100;
-    spec.format = AUDIO_U8;
-    spec.channels = 1;
-    spec.callback = audioCallback;
+    // SDL_AudioSpec spec;
+    // spec.freq = 44100;
+    // spec.format = AUDIO_U8;
+    // spec.channels = 1;
+    // spec.callback = audioCallback;
 
-    if (SDL_OpenAudio(&spec, NULL) < 0) {
-        cerr << "Could not open audio" << SDL_GetError() << endl;
-    }
+    // if (SDL_OpenAudio(&spec, NULL) < 0) {
+    //     cerr << "Could not open audio" << SDL_GetError() << endl;
+    // }
 
     for (int i = 0; i < SDL_NumJoysticks(); ++i) {
         SDL_GameController* GameController = SDL_GameControllerOpen(i);
@@ -126,7 +126,7 @@ void run(string path) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 
-    SDL_CloseAudio();
+    // SDL_CloseAudio();
 
     SDL_Quit();
 }
