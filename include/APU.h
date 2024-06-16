@@ -117,11 +117,18 @@ private:
 
     struct NoiseChannel {
         bool lengthCounterHalt;
-        bool constantVolume;
-        uint8_t volume;
-        bool loopNoise;
-        uint8_t noisePreiod;
+
+        bool mode;
+
+        uint16_t noisePeriod;
         uint8_t lengthCounter;
+
+        uint16_t timer;
+        uint8_t shiftReg;
+
+        Envelope envelope;
+
+        void clock();
     } _noise;
 
     struct DMCChannel {

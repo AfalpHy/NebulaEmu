@@ -16,6 +16,8 @@ uint8_t lengthTable[] = {10, 254, 20, 2,  40, 4,  80, 6,  160, 8,  60, 10, 14, 1
 uint8_t triangleSequence[] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5,  4,  3,  2,  1,  0,
                               0,  1,  2,  3,  4,  5,  6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 
+uint16_t noiseTimerPeriod[] = {4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068};
+
 void APU::reset() { _buffer.resize(65536); }
 
 void APU::step() {
@@ -27,6 +29,9 @@ void APU::step() {
     // this timer ticks at the rate of the CPU clock rather than the APU (CPU/2) clock
     _triangle.sequencer.clock(_triangle.timer);
     _triangle.sequencer.clock(_triangle.timer);
+
+    _noise.clock();
+    _noise.clock();
 
     if (_cycles == 3729) {
         quarterFrameClock();
@@ -181,16 +186,19 @@ void APU::writeTriangleReg3(uint8_t data) {
 
 void APU::writeNoiseReg0(uint8_t data) {
     _noise.lengthCounterHalt = (data >> 5) & 1;
-    _noise.constantVolume = (data >> 4) & 1;
-    _noise.volume = data & 0x0F;
+    _noise.envelope.loop = _noise.envelope.constantVolume = (data >> 4) & 1;
+    _noise.envelope.volume = data & 0x0F;
 }
 
 void APU::writeNoiseReg2(uint8_t data) {
-    _noise.loopNoise = data >> 7;
-    _noise.noisePreiod = data & 0x0F;
+    _noise.mode = data >> 7;
+    _noise.noisePeriod = noiseTimerPeriod[data & 0x0F];
 }
 
-void APU::writeNoiseReg3(uint8_t data) { _noise.lengthCounter = lengthTable[data >> 3]; }
+void APU::writeNoiseReg3(uint8_t data) {
+    _noise.lengthCounter = lengthTable[data >> 3];
+    _noise.envelope.start = true;
+}
 
 void APU::writeDMCReg0(uint8_t data) {
     _DMC.IRQenable = data >> 7;
@@ -242,7 +250,12 @@ uint8_t APU::calculateTriangle() {
     return 0;
 }
 
-uint8_t APU::calculateNoise() { return 0; }
+uint8_t APU::calculateNoise() {
+    if ((_noise.shiftReg & 0x1) || _noise.lengthCounter == 0) {
+        return 0;
+    }
+    return _noise.envelope.output;
+}
 
 uint8_t APU::calculateDMC() { return 0; }
 
@@ -299,25 +312,39 @@ void APU::PulseChannel::Sweep::clock(bool pulse1, uint16_t& timer) {
 }
 
 void APU::PulseChannel::Sequencer::clock(uint16_t timer) {
-    this->timer--;
     if (this->timer == 0) {
         this->timer = timer;
         output = sequence & 0x80;
         sequence = (sequence << 1) | (sequence >> 7);
+    } else {
+        this->timer--;
     }
 }
 
 void APU::TriangleChannel::Sequencer::clock(uint16_t timer) {
-    this->timer--;
     if (this->timer == 0) {
         this->timer = timer;
         index++;
+    } else {
+        this->timer--;
+    }
+}
+
+void APU::NoiseChannel::clock() {
+    if (timer == 0) {
+        timer = noisePeriod;
+        bool feedback = (shiftReg & 0x1) ^ ((shiftReg >> (mode ? 6 : 1)) & 0x1);
+        shiftReg >>= 1;
+        shiftReg |= feedback << 14;
+    } else {
+        timer--;
     }
 }
 
 void APU::quarterFrameClock() {
     _pulse1.envelope.clock();
     _pulse2.envelope.clock();
+    _noise.envelope.clock();
 
     // If the linear counter reload flag is set, the linear counter is reloaded with the counter reload value, otherwise
     // if the linear counter is non-zero, it is decremented
