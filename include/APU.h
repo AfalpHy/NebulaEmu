@@ -98,10 +98,21 @@ private:
     } _pulse1, _pulse2;
 
     struct TriangleChannel {
+        // Control flag (this bit is also the length counter halt flag)
         bool lengthCounterHalt;
-        uint8_t linearCounterLoad;
+        uint8_t counterReload;
+        uint8_t linearCounter;
         uint16_t timer;
         uint8_t lengthCounter;
+
+        struct Sequencer {
+            uint16_t timer;
+            uint8_t index;
+
+            void clock(uint16_t timer);
+        } sequencer;
+
+        bool linearCounterReload;
     } _triangle;
 
     struct NoiseChannel {

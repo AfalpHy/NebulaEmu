@@ -13,17 +13,20 @@ extern CPU* cpu;
 uint8_t lengthTable[] = {10, 254, 20, 2,  40, 4,  80, 6,  160, 8,  60, 10, 14, 12, 26, 14,
                          12, 16,  24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30};
 
-void APU::reset() {
-    _M = false;
-    _I = false;
-    _buffer.resize(65536);
-}
+uint8_t triangleSequence[] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5,  4,  3,  2,  1,  0,
+                              0,  1,  2,  3,  4,  5,  6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+
+void APU::reset() { _buffer.resize(65536); }
 
 void APU::step() {
     _cycles++;
 
     _pulse1.sequencer.clock(_pulse1.timer);
     _pulse2.sequencer.clock(_pulse2.timer);
+
+    // this timer ticks at the rate of the CPU clock rather than the APU (CPU/2) clock
+    _triangle.sequencer.clock(_triangle.timer);
+    _triangle.sequencer.clock(_triangle.timer);
 
     if (_cycles == 3729) {
         quarterFrameClock();
@@ -159,7 +162,7 @@ void APU::writePulseReg3(bool pulse1, uint8_t data) {
 
 void APU::writeTriangleReg0(uint8_t data) {
     _triangle.lengthCounterHalt = data >> 7;
-    _triangle.linearCounterLoad = data & 0x7F;
+    _triangle.counterReload = data & 0x7F;
 }
 
 void APU::writeTriangleReg2(uint8_t data) {
@@ -170,6 +173,10 @@ void APU::writeTriangleReg2(uint8_t data) {
 void APU::writeTriangleReg3(uint8_t data) {
     _triangle.timer &= 0x00FF;
     _triangle.timer |= (data & 0x7) << 8;
+    _triangle.lengthCounter = lengthTable[data >> 3];
+
+    // side effects
+    _triangle.linearCounterReload = true;
 }
 
 void APU::writeNoiseReg0(uint8_t data) {
@@ -228,7 +235,12 @@ uint8_t APU::calculatePulse(PulseChannel& pulse) {
     return pulse.envelope.output * pulse.sequencer.output;
 }
 
-uint8_t APU::calculateTriangle() { return 0; }
+uint8_t APU::calculateTriangle() {
+    if (_triangle.linearCounter && _triangle.lengthCounter) {
+        return triangleSequence[_triangle.sequencer.index % 32];
+    }
+    return 0;
+}
 
 uint8_t APU::calculateNoise() { return 0; }
 
@@ -295,9 +307,31 @@ void APU::PulseChannel::Sequencer::clock(uint16_t timer) {
     }
 }
 
+void APU::TriangleChannel::Sequencer::clock(uint16_t timer) {
+    this->timer--;
+    if (this->timer == 0) {
+        this->timer = timer;
+        index++;
+    }
+}
+
 void APU::quarterFrameClock() {
     _pulse1.envelope.clock();
     _pulse2.envelope.clock();
+
+    // If the linear counter reload flag is set, the linear counter is reloaded with the counter reload value, otherwise
+    // if the linear counter is non-zero, it is decremented
+    if (_triangle.linearCounterReload) {
+        _triangle.linearCounter = _triangle.counterReload;
+    } else {
+        if (_triangle.linearCounter > 0) {
+            _triangle.linearCounter--;
+        }
+    }
+    // If the control flag is clear, the linear counter reload flag is cleared.
+    if (!_triangle.lengthCounterHalt) {
+        _triangle.linearCounterReload = false;
+    }
 }
 
 void APU::halfFrameClock() {
@@ -315,6 +349,14 @@ void APU::halfFrameClock() {
         }
     } else {
         _pulse2.lengthCounter = 0;
+    }
+
+    if (_State.bits.T) {
+        if (!_triangle.lengthCounterHalt && _triangle.lengthCounter) {
+            _triangle.lengthCounter--;
+        }
+    } else {
+        _triangle.lengthCounter = 0;
     }
 
     if (_State.bits.N) {
