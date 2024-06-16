@@ -1,6 +1,7 @@
 #include "APU.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 
 #include "CPU.h"
@@ -15,18 +16,11 @@ uint8_t lengthTable[] = {10, 254, 20, 2,  40, 4,  80, 6,  160, 8,  60, 10, 14, 1
 void APU::reset() {
     _M = false;
     _I = false;
+    _buffer.resize(65536);
 }
 
 void APU::step() {
     _cycles++;
-
-    // if (_pulse1.timer < 8) {
-    //     _pulse1.sweep.mute = true;
-    // }
-
-    // if (_pulse2.timer < 8) {
-    //     _pulse2.sweep.mute = true;
-    // }
 
     _pulse1.sequencer.clock(_pulse1.timer);
     _pulse2.sequencer.clock(_pulse2.timer);
@@ -47,17 +41,19 @@ void APU::step() {
             }
             _cycles = 0;
         }
-    } else if (_cycles == 186401) {
+    } else if (_cycles == 18641) {
         quarterFrameClock();
         halfFrameClock();
         _cycles = 0;
     }
+
+    // With an audio sampling rate of 441 kHz, approximately one sample is taken every 20 APU cycles.
+    if (_cycles % 20 == 0) {
+        sample();
+    }
 }
 
-uint8_t APU::sample() {
-    _sampleIndex++;
-    return linearApproximationMix() * 255;
-}
+void APU::sample() { _buffer[_sampleIndex++ % _buffer.size()] = linearApproximationMix() * 255; }
 
 uint8_t APU::readStatus() {
     uint8_t ret = (_noise.lengthCounter > 0) << 3 | (_triangle.lengthCounter > 0) << 2 |
@@ -266,13 +262,7 @@ void APU::Envelope::clock() {
 }
 
 void APU::PulseChannel::Sweep::clock(bool pulse1, uint16_t& timer) {
-    if (reload) {
-        reload = false;
-        divider = period;
-        return;
-    }
     if (divider == 0) {
-        divider = period;
         if (enable && shiftCount != 0 && !mute) {
             int changeAmount = timer >> shiftCount;
             if (negate) {
@@ -283,13 +273,17 @@ void APU::PulseChannel::Sweep::clock(bool pulse1, uint16_t& timer) {
             } else {
                 timer = timer + changeAmount;
             }
-            if (timer > 0x7FF) {
-                mute = true;
-            }
         }
+    }
+
+    if (divider == 0 || reload) {
+        reload = false;
+        divider = period;
     } else {
         divider--;
     }
+
+    mute = timer < 8 || timer > 0x7FF;
 }
 
 void APU::PulseChannel::Sequencer::clock(uint16_t timer) {

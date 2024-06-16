@@ -35,12 +35,21 @@ void init() {
 
 void audioCallback(void* userdata, uint8_t* stream, int len) {
     (void)userdata;
-    for (int i = 0; i < len; i++) {
-        stream[i] = apu->sample();
+    static uint64_t index = 0;
+    if (apu->isReady()) {
+        memcpy(stream, apu->getBuffer().data() + index % apu->getBuffer().size(), len);
+        index += len;
+    } else {
+        memset(stream, 128, len);
     }
 }
 
 void run(string path) {
+    cartridge->load(path);
+    apu->reset();
+    cpu->reset();
+    ppu->reset();
+
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER);
 
     SDL_Window* window = SDL_CreateWindow("NebulaEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -51,16 +60,19 @@ void run(string path) {
     SDL_Texture* texture =
         SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    // SDL_AudioSpec spec;
-    // spec.freq = 44100;
-    // spec.format = AUDIO_U8;
-    // spec.channels = 1;
-    // spec.size = 1024;
-    // spec.callback = audioCallback;
+    SDL_AudioSpec spec;
+    spec.freq = 44100;
+    spec.format = AUDIO_U8;
+    spec.channels = 1;
+    spec.samples = 1024;
+    spec.callback = audioCallback;
 
-    // if (SDL_OpenAudio(&spec, NULL) < 0) {
-    //     cerr << "Could not open audio" << SDL_GetError() << endl;
-    // }
+    if (SDL_OpenAudio(&spec, NULL) < 0) {
+        cerr << "Could not open audio" << SDL_GetError() << endl;
+    }
+
+    // audio play begin
+    SDL_PauseAudio(0);
 
     for (int i = 0; i < SDL_NumJoysticks(); ++i) {
         SDL_GameController* GameController = SDL_GameControllerOpen(i);
@@ -71,11 +83,6 @@ void run(string path) {
         }
     }
 
-    cartridge->load(path);
-    apu->reset();
-    cpu->reset();
-    ppu->reset();
-
     auto past = chrono::high_resolution_clock::now();
     chrono::high_resolution_clock::duration elapsedTime(0);
     // The NES master clock is 21.47727 MHz (NTSC).
@@ -84,9 +91,6 @@ void run(string path) {
     // The CPU completes one cycle in 1/1.789772 MHz = 559ns
     // The sequencer is clocked on every other CPU cycle, so 2 CPU cycles = 1 APU cycle
     chrono::nanoseconds cycleDuration(559 * 2);
-
-    // audio play begin
-    // SDL_PauseAudio(0);
 
     bool quit = false;
     SDL_Event e;
@@ -127,7 +131,7 @@ void run(string path) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 
-    // SDL_CloseAudio();
+    SDL_CloseAudio();
 
     SDL_Quit();
 }

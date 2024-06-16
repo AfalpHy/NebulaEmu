@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 namespace NebulaEmu {
 
@@ -10,7 +11,9 @@ public:
 
     void step();
 
-    uint8_t sample();
+    std::vector<uint8_t> &getBuffer() { return _buffer; }
+
+    bool isReady() { return _sampleIndex >= _buffer.size(); }
 
     uint8_t readStatus();
 
@@ -150,8 +153,13 @@ private:
 
     void halfFrameClock();
 
+    void sample();
+
     uint64_t _cycles = 0;
+
     uint64_t _sampleIndex = 0;
+
+    std::vector<uint8_t> _buffer;
 };
 
 }  // namespace NebulaEmu
