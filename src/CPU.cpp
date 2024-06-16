@@ -240,67 +240,66 @@ void CPU::write(uint16_t addr, uint8_t data) {
                 exit(1);
         }
     } else if (addr < 0x4020) {
-        // std::cout << std::hex << addr << " " << +data << std::endl;
         switch (addr) {
             case 0x4000:
-                apu->writePulse0(true, data);
+                apu->writePulseReg0(true, data);
                 break;
             case 0x4001:
-                apu->writePulse1(true, data);
+                apu->writePulseReg1(true, data);
                 break;
             case 0x4002:
-                apu->writePulse2(true, data);
+                apu->writePulseReg2(true, data);
                 break;
             case 0x4003:
-                apu->writePulse3(true, data);
+                apu->writePulseReg3(true, data);
                 break;
             case 0x4004:
-                apu->writePulse0(false, data);
+                apu->writePulseReg0(false, data);
                 break;
             case 0x4005:
-                apu->writePulse1(false, data);
+                apu->writePulseReg1(false, data);
                 break;
             case 0x4006:
-                apu->writePulse2(false, data);
+                apu->writePulseReg2(false, data);
                 break;
             case 0x4007:
-                apu->writePulse3(false, data);
+                apu->writePulseReg3(false, data);
                 break;
             case 0x4008:
-                apu->writeTriangle0(data);
+                apu->writeTriangleReg0(data);
                 break;
             case 0x4009:
                 // Unused
                 break;
             case 0x400A:
-                apu->writeTriangle2(data);
+                apu->writeTriangleReg2(data);
                 break;
             case 0x400B:
-                apu->writeTriangle2(data);
+                apu->writeTriangleReg3(data);
                 break;
             case 0x400C:
-                apu->writeNoise0(data);
+                apu->writeNoiseReg0(data);
                 break;
             case 0x400D:
                 // Unused
                 break;
             case 0x400E:
-                apu->writeNoise2(data);
+                apu->writeNoiseReg2(data);
                 break;
             case 0x400F:
-                apu->writeNoise3(data);
+                apu->writeNoiseReg3(data);
                 break;
             case 0x4010:
-                apu->writeDMC0(data);
+                apu->writeDMCReg0(data);
                 break;
             case 0x4011:
-                apu->writeDMC1(data);
+                apu->writeDMCReg1(data);
                 break;
             case 0x4012:
-                apu->writeDMC2(data);
+                apu->writeDMCReg2(data);
                 break;
             case 0x4013:
-                apu->writeDMC3(data);
+                apu->writeDMCReg3(data);
                 break;
             case 0x4014:
                 _skipCycles += 513;

@@ -15,67 +15,83 @@ public:
     uint8_t readStatus();
 
     // pulse
-    void writePulse0(bool one, uint8_t data);
+    void writePulseReg0(bool pulse1, uint8_t data);
 
-    void writePulse1(bool one, uint8_t data);
+    void writePulseReg1(bool pulse1, uint8_t data);
 
-    void writePulse2(bool one, uint8_t data);
+    void writePulseReg2(bool pulse1, uint8_t data);
 
-    void writePulse3(bool one, uint8_t data);
+    void writePulseReg3(bool pulse1, uint8_t data);
 
     // triangle
-    void writeTriangle0(uint8_t data);
+    void writeTriangleReg0(uint8_t data);
 
-    void writeTriangle2(uint8_t data);
+    void writeTriangleReg2(uint8_t data);
 
-    void writeTriangle3(uint8_t data);
+    void writeTriangleReg3(uint8_t data);
 
     // noise
-    void writeNoise0(uint8_t data);
+    void writeNoiseReg0(uint8_t data);
 
-    void writeNoise2(uint8_t data);
+    void writeNoiseReg2(uint8_t data);
 
-    void writeNoise3(uint8_t data);
+    void writeNoiseReg3(uint8_t data);
 
     // DMC
-    void writeDMC0(uint8_t data);
+    void writeDMCReg0(uint8_t data);
 
-    void writeDMC1(uint8_t data);
+    void writeDMCReg1(uint8_t data);
 
-    void writeDMC2(uint8_t data);
+    void writeDMCReg2(uint8_t data);
 
-    void writeDMC3(uint8_t data);
+    void writeDMCReg3(uint8_t data);
 
     void writeStatus(uint8_t data);
 
     void writeFrameCounter(uint8_t data);
 
 private:
-    struct PulseChannel {
-        uint8_t duty;
-        bool envelopeLoop;
-        bool lengthCounterHalt;
+    struct Envelope {
+        bool start;
+        bool loop;
         bool constantVolume;
         uint8_t volume;
-        union {
-            struct {
-                uint8_t S : 3;  // shift
-                bool N : 1;     // negate
-                uint8_t P : 3;  // period
-                bool E : 1;     // enable
-            } bits;
-            uint8_t value;
-        } sweepUnit;
+        uint8_t divider;
+        uint8_t decayLevelCounter;
+        uint8_t output;
+
+        void clock();
+    };
+
+    struct PulseChannel {
+        uint8_t sequence;
+        bool lengthCounterHalt;
+
         uint16_t timer;
         uint8_t lengthCounter;
 
-        bool envelopStart;
-        uint8_t envelopDivider;
-        uint8_t decayLevel;
-        uint8_t output;
+        Envelope envelope;
 
-        bool sweepReload;
-        uint8_t sweepDivider;
+        struct Sweep {
+            bool reload;
+            bool enable;
+            bool negate;
+            uint8_t period;
+            uint8_t shiftCount;
+            uint8_t divider;
+
+            bool mute;
+            void clock(bool pulse1, uint16_t &timer);
+        } sweep;
+
+        struct Sequencer {
+            uint16_t timer;
+            uint8_t sequence;
+            bool output;
+
+            void clock(uint16_t timer);
+        } sequencer;
+
     } _pulse1, _pulse2;
 
     struct TriangleChannel {

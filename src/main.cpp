@@ -55,6 +55,7 @@ void run(string path) {
     // spec.freq = 44100;
     // spec.format = AUDIO_U8;
     // spec.channels = 1;
+    // spec.size = 1024;
     // spec.callback = audioCallback;
 
     // if (SDL_OpenAudio(&spec, NULL) < 0) {
@@ -85,7 +86,7 @@ void run(string path) {
     chrono::nanoseconds cycleDuration(559 * 2);
 
     // audio play begin
-    SDL_PauseAudio(0);
+    // SDL_PauseAudio(0);
 
     bool quit = false;
     SDL_Event e;

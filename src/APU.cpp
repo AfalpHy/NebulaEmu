@@ -19,6 +19,18 @@ void APU::reset() {
 
 void APU::step() {
     _cycles++;
+
+    // if (_pulse1.timer < 8) {
+    //     _pulse1.sweep.mute = true;
+    // }
+
+    // if (_pulse2.timer < 8) {
+    //     _pulse2.sweep.mute = true;
+    // }
+
+    _pulse1.sequencer.clock(_pulse1.timer);
+    _pulse2.sequencer.clock(_pulse2.timer);
+
     if (_cycles == 3729) {
         quarterFrameClock();
     } else if (_cycles == 7457) {
@@ -38,6 +50,7 @@ void APU::step() {
     } else if (_cycles == 186401) {
         quarterFrameClock();
         halfFrameClock();
+        _cycles = 0;
     }
 }
 
@@ -52,34 +65,74 @@ uint8_t APU::readStatus() {
     return ret;
 }
 
-void APU::writePulse0(bool one, uint8_t data) {
-    if (one) {
-        _pulse1.duty = data >> 6;
-        _pulse1.envelopeLoop = _pulse1.lengthCounterHalt = (data >> 5) & 1;
-        _pulse1.constantVolume = (data >> 4) & 1;
-        _pulse1.volume = data & 0x0F;
+void APU::writePulseReg0(bool pulse1, uint8_t data) {
+    if (pulse1) {
+        uint8_t duty = data >> 6;
+        switch (duty) {
+            case 0:
+                _pulse1.sequence = 0b01000000;
+                break;
+            case 1:
+                _pulse1.sequence = 0b01100000;
+                break;
+            case 2:
+                _pulse1.sequence = 0b01111000;
+                break;
+            case 3:
+                _pulse1.sequence = 0b10011111;
+                break;
+        }
+        _pulse1.envelope.loop = _pulse1.lengthCounterHalt = data & 0x20;
+        _pulse1.envelope.constantVolume = data & 0x10;
+        _pulse1.envelope.volume = data & 0x0F;
+
+        // side effects
+        _pulse1.envelope.start = true;
     } else {
-        _pulse2.duty = data >> 6;
-        _pulse2.envelopeLoop = _pulse2.lengthCounterHalt = (data >> 5) & 1;
-        _pulse2.constantVolume = (data >> 4) & 1;
-        _pulse2.volume = data & 0x0F;
+        uint8_t duty = data >> 6;
+        switch (duty) {
+            case 0:
+                _pulse2.sequence = 0b01000000;
+                break;
+            case 1:
+                _pulse2.sequence = 0b01100000;
+                break;
+            case 2:
+                _pulse2.sequence = 0b01111000;
+                break;
+            case 3:
+                _pulse2.sequence = 0b10011111;
+                break;
+        }
+        _pulse2.envelope.loop = _pulse2.lengthCounterHalt = data & 0x20;
+        _pulse2.envelope.constantVolume = data & 0x10;
+        _pulse2.envelope.volume = data & 0x0F;
+
+        // side effects
+        _pulse2.envelope.start = true;
     }
 }
 
-void APU::writePulse1(bool one, uint8_t data) {
-    if (one) {
-        _pulse1.sweepUnit.value = data;
-        // side effect
-        _pulse1.sweepReload = true;
+void APU::writePulseReg1(bool pulse1, uint8_t data) {
+    if (pulse1) {
+        _pulse1.sweep.enable = data & 0x80;
+        _pulse1.sweep.period = (data >> 4) & 0x7;
+        _pulse1.sweep.negate = data & 0x8;
+        _pulse1.sweep.shiftCount = data & 0x07;
+        // side effects
+        _pulse1.sweep.reload = true;
     } else {
-        _pulse2.sweepUnit.value = data;
-        // side effect
-        _pulse2.sweepReload = true;
+        _pulse2.sweep.enable = data & 0x80;
+        _pulse2.sweep.period = (data >> 4) & 0x7;
+        _pulse2.sweep.negate = data & 0x8;
+        _pulse2.sweep.shiftCount = data & 0x07;
+        // side effects
+        _pulse2.sweep.reload = true;
     }
 }
 
-void APU::writePulse2(bool one, uint8_t data) {
-    if (one) {
+void APU::writePulseReg2(bool pulse1, uint8_t data) {
+    if (pulse1) {
         _pulse1.timer &= 0xFF00;
         _pulse1.timer |= data;
     } else {
@@ -88,71 +141,82 @@ void APU::writePulse2(bool one, uint8_t data) {
     }
 }
 
-void APU::writePulse3(bool one, uint8_t data) {
-    if (one) {
+void APU::writePulseReg3(bool pulse1, uint8_t data) {
+    if (pulse1) {
         _pulse1.timer &= 0x00FF;
         _pulse1.timer |= (data & 0x7) << 8;
         _pulse1.lengthCounter = lengthTable[data >> 3];
 
-        // side effect
-        _pulse1.envelopStart = true;
+        // side effects
+        _pulse1.sequencer.sequence = _pulse1.sequence;
+        _pulse1.envelope.start = true;
     } else {
         _pulse2.timer &= 0x00FF;
         _pulse2.timer |= (data & 0x7) << 8;
         _pulse2.lengthCounter = lengthTable[data >> 3];
 
-        // side effect
-        _pulse2.envelopStart = true;
+        // side effects
+        _pulse2.sequencer.sequence = _pulse2.sequence;
+        _pulse2.envelope.start = true;
     }
 }
 
-void APU::writeTriangle0(uint8_t data) {
+void APU::writeTriangleReg0(uint8_t data) {
     _triangle.lengthCounterHalt = data >> 7;
     _triangle.linearCounterLoad = data & 0x7F;
 }
 
-void APU::writeTriangle2(uint8_t data) {
+void APU::writeTriangleReg2(uint8_t data) {
     _triangle.timer &= 0xFF00;
     _triangle.timer |= data;
 }
 
-void APU::writeTriangle3(uint8_t data) {
+void APU::writeTriangleReg3(uint8_t data) {
     _triangle.timer &= 0x00FF;
     _triangle.timer |= (data & 0x7) << 8;
 }
 
-void APU::writeNoise0(uint8_t data) {
+void APU::writeNoiseReg0(uint8_t data) {
     _noise.lengthCounterHalt = (data >> 5) & 1;
     _noise.constantVolume = (data >> 4) & 1;
     _noise.volume = data & 0x0F;
 }
 
-void APU::writeNoise2(uint8_t data) {
+void APU::writeNoiseReg2(uint8_t data) {
     _noise.loopNoise = data >> 7;
     _noise.noisePreiod = data & 0x0F;
 }
 
-void APU::writeNoise3(uint8_t data) { _noise.lengthCounter = lengthTable[data >> 3]; }
+void APU::writeNoiseReg3(uint8_t data) { _noise.lengthCounter = lengthTable[data >> 3]; }
 
-void APU::writeDMC0(uint8_t data) {
+void APU::writeDMCReg0(uint8_t data) {
     _DMC.IRQenable = data >> 7;
     _DMC.loop = (data >> 6) & 1;
     _DMC.frequency = data & 0x0F;
 }
 
-void APU::writeDMC1(uint8_t data) { _DMC.loadCounter = data & 0x7F; }
+void APU::writeDMCReg1(uint8_t data) { _DMC.loadCounter = data & 0x7F; }
 
-void APU::writeDMC2(uint8_t data) { _DMC.sampleAddress = data; }
+void APU::writeDMCReg2(uint8_t data) { _DMC.sampleAddress = data; }
 
-void APU::writeDMC3(uint8_t data) { _DMC.sampleLength = data; }
+void APU::writeDMCReg3(uint8_t data) { _DMC.sampleLength = data; }
 
-void APU::writeStatus(uint8_t data) { _State.value = data & 0x1F; }
+void APU::writeStatus(uint8_t data) {
+    _State.value = data & 0x1F;
+
+    // side effects
+    _pulse1.envelope.start = true;
+    _pulse2.envelope.start = true;
+}
 
 void APU::writeFrameCounter(uint8_t data) {
-    (void)data;
-    // _M = data >> 7;
-    // _I = (data >> 6) & 1;
-    // _cycles = 0;
+    _M = data >> 7;
+    _I = (data >> 6) & 1;
+    // If the mode flag is set, then both "quarter frame" and "half frame" signals are also generated
+    if (_M) {
+        quarterFrameClock();
+        halfFrameClock();
+    }
 }
 
 float APU::linearApproximationMix() {
@@ -161,7 +225,12 @@ float APU::linearApproximationMix() {
     return pulseOut + tndOut;
 }
 
-uint8_t APU::calculatePulse(PulseChannel& pulse) { return pulse.output; }
+uint8_t APU::calculatePulse(PulseChannel& pulse) {
+    if (pulse.sweep.mute || pulse.lengthCounter == 0) {
+        return 0;
+    }
+    return pulse.envelope.output * pulse.sequencer.output;
+}
 
 uint8_t APU::calculateTriangle() { return 0; }
 
@@ -169,31 +238,72 @@ uint8_t APU::calculateNoise() { return 0; }
 
 uint8_t APU::calculateDMC() { return 0; }
 
-void APU::quarterFrameClock() {
-    if (_pulse1.envelopStart) {
-        // if the start flag is clear, the divider is clocked, otherwise the start flag is cleared
-        _pulse1.envelopStart = false;
-        _pulse1.envelopDivider = _pulse1.volume;
-        _pulse1.decayLevel = 15;
-    } else {
-        if (_pulse1.envelopDivider == 0) {
-            _pulse1.envelopDivider = _pulse1.volume;
-            if (_pulse1.decayLevel != 0) {
-                _pulse1.decayLevel--;
-            } else {
-                if (_pulse1.envelopeLoop) {
-                    _pulse1.decayLevel = 15;
+void APU::Envelope::clock() {
+    if (!start) {
+        if (divider == 0) {
+            divider = volume;
+            if (decayLevelCounter == 0) {
+                if (loop) {
+                    decayLevelCounter = 15;
                 }
+            } else {
+                decayLevelCounter--;
             }
         } else {
-            _pulse1.envelopDivider--;
+            divider--;
         }
-    }
-    if (_pulse1.constantVolume) {
-        _pulse1.output = _pulse1.volume;
     } else {
-        _pulse1.output = _pulse1.decayLevel;
+        start = false;
+        decayLevelCounter = 15;
+        divider = volume;
     }
+
+    if (constantVolume) {
+        output = volume;
+    } else {
+        output = decayLevelCounter;
+    }
+}
+
+void APU::PulseChannel::Sweep::clock(bool pulse1, uint16_t& timer) {
+    if (reload) {
+        reload = false;
+        divider = period;
+        return;
+    }
+    if (divider == 0) {
+        divider = period;
+        if (enable && shiftCount != 0 && !mute) {
+            int changeAmount = timer >> shiftCount;
+            if (negate) {
+                changeAmount = -changeAmount - pulse1;
+            }
+            if (timer + changeAmount < 0) {
+                timer = 0;
+            } else {
+                timer = timer + changeAmount;
+            }
+            if (timer > 0x7FF) {
+                mute = true;
+            }
+        }
+    } else {
+        divider--;
+    }
+}
+
+void APU::PulseChannel::Sequencer::clock(uint16_t timer) {
+    this->timer--;
+    if (this->timer == 0) {
+        this->timer = timer;
+        output = sequence & 0x80;
+        sequence = (sequence << 1) | (sequence >> 7);
+    }
+}
+
+void APU::quarterFrameClock() {
+    _pulse1.envelope.clock();
+    _pulse2.envelope.clock();
 }
 
 void APU::halfFrameClock() {
@@ -220,6 +330,9 @@ void APU::halfFrameClock() {
     } else {
         _noise.lengthCounter = 0;
     }
+
+    _pulse1.sweep.clock(true, _pulse1.timer);
+    _pulse2.sweep.clock(false, _pulse2.timer);
 }
 
 }  // namespace NebulaEmu
