@@ -13,7 +13,7 @@ public:
 
     std::vector<uint8_t> &getBuffer() { return _buffer; }
 
-    bool isReady() { return _sampleIndex >= _buffer.size(); }
+    uint64_t getSampleIndex() { return _sampleIndex; }
 
     uint8_t readStatus();
 

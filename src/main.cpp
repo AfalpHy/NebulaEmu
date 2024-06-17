@@ -36,12 +36,19 @@ void init() {
 void audioCallback(void* userdata, uint8_t* stream, int len) {
     (void)userdata;
     static uint64_t index = 0;
-    if (apu->isReady()) {
-        memcpy(stream, apu->getBuffer().data() + index % apu->getBuffer().size(), len);
-        index += len;
-    } else {
-        memset(stream, 128, len);
+    if (apu->getSampleIndex() <= index + len) {
+        SDL_memset(stream, 128, len);
+        return;
     }
+
+    // synchronize
+    if (apu->getSampleIndex() - index >= apu->getBuffer().size()) {
+        index += apu->getBuffer().size();
+        return;
+    }
+
+    SDL_memcpy(stream, apu->getBuffer().data() + index % apu->getBuffer().size(), len);
+    index += len;
 }
 
 void run(string path) {
