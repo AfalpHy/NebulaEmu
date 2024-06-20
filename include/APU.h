@@ -7,6 +7,8 @@ namespace NebulaEmu {
 
 class APU {
 public:
+    APU();
+
     void reset();
 
     void step();
@@ -159,6 +161,8 @@ private:
 
     float linearApproximationMix();
 
+    float lookupTable();
+
     uint8_t calculatePulse(PulseChannel &pulse);
 
     uint8_t calculateTriangle();
@@ -178,6 +182,8 @@ private:
     uint64_t _sampleIndex = 0;
 
     std::vector<uint8_t> _buffer;
+    std::vector<float> _pulseTable;
+    std::vector<float> _tndTable;
 };
 
 }  // namespace NebulaEmu

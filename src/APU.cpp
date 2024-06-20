@@ -18,6 +18,17 @@ static uint8_t triangleSequence[] = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5,  4, 
 
 static uint16_t noiseTimerPeriod[] = {4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068};
 
+APU::APU() {
+    _pulseTable.push_back(0.0);
+    for (int i = 1; i < 31; i++) {
+        _pulseTable.push_back(95.52 / (8128.0 / i + 100));
+    }
+    _tndTable.push_back(0.0);
+    for (int i = 1; i < 203; i++) {
+        _tndTable.push_back(163.67 / (24329.0 / i + 100));
+    }
+}
+
 void APU::reset() { _buffer.resize(65536); }
 
 void APU::step() {
@@ -61,7 +72,10 @@ void APU::step() {
     }
 }
 
-void APU::sample() { _buffer[_sampleIndex++ % _buffer.size()] = linearApproximationMix() * 255; }
+void APU::sample() {
+    // _buffer[_sampleIndex++ % _buffer.size()] = linearApproximationMix() * 255;
+    _buffer[_sampleIndex++ % _buffer.size()] = lookupTable() * 255;
+}
 
 uint8_t APU::readStatus() {
     uint8_t ret = (_noise.lengthCounter > 0) << 3 | (_triangle.lengthCounter > 0) << 2 |
@@ -234,6 +248,11 @@ float APU::linearApproximationMix() {
     float pulseOut = 0.00752 * (calculatePulse(_pulse1) + calculatePulse(_pulse2));
     float tndOut = 0.00851 * calculateTriangle() + 0.00494 * calculateNoise() + 0.00335 * calculateDMC();
     return pulseOut + tndOut;
+}
+
+float APU::lookupTable() {
+    return _pulseTable[calculatePulse(_pulse1) + calculatePulse(_pulse2)] +
+           _tndTable[3 * calculateTriangle() + 2 * calculateNoise() + calculateDMC()];
 }
 
 uint8_t APU::calculatePulse(PulseChannel& pulse) {
