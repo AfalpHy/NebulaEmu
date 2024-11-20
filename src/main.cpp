@@ -145,6 +145,14 @@ void run(string path) {
 
 }  // namespace NebulaEmu
 
+
+// avoid using WinMain in SDL2 on Windows (Defining main as SDL_main in SDL causes the use of WinMain)
+#ifdef _WIN32
+
+#undef main
+
+#endif
+
 int main(int argc, char** argv) {
     string path;
     const struct option table[] = {
